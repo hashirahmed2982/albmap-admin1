@@ -3,7 +3,7 @@
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from './tokens';
 import type { ApiErrorResponse } from './types';
 
-export const API_BASE_URL = "https://0599-2407-aa80-15-9c4c-5045-223-f687-554.ngrok-free.app/v1";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
 
 export class ApiError extends Error {
   status: number;
@@ -32,7 +32,14 @@ function refreshAccessToken(): Promise<boolean> {
     try {
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // Bypasses ngrok free-tier's browser-warning interstitial page —
+          // without this, ngrok serves its own HTML page instead of
+          // forwarding to the real backend, which has no CORS headers at
+          // all and looks exactly like a CORS failure in devtools.
+          'ngrok-skip-browser-warning': 'true',
+        },
         body: JSON.stringify({ refreshToken }),
       });
       if (!res.ok) return false;
@@ -68,6 +75,15 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   const doFetch = async (): Promise<Response> => {
     const finalHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      // Bypasses ngrok free-tier's browser-warning interstitial page —
+      // without this, the free tier serves its own HTML page to any
+      // browser tab hitting the tunnel for the first time, instead of
+      // forwarding to the real backend. That interstitial has no CORS
+      // headers at all, which shows up in devtools as "No
+      // Access-Control-Allow-Origin header," looking exactly like a CORS
+      // misconfiguration even though the actual Express CORS setup is
+      // completely fine — the request just never reached it.
+      'ngrok-skip-browser-warning': 'true',
       ...(headers as Record<string, string> | undefined),
     };
     if (!skipAuth) {

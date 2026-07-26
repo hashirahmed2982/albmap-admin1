@@ -26,15 +26,31 @@ export interface Business {
   name: string;
   description: string | null;
   category: string;
-  address: string;
+  streetAddress: string;
+  city: string;
+  postalCode: string;
+  country: string;
+  formattedAddress: string;
   latitude: number;
   longitude: number;
   phone: string | null;
+  whatsappNumber: string | null;
   logoUrl: string | null;
   openingHours: Record<string, string>;
   tags: string[];
   status: BusinessStatus;
   rating: number | null;
+  ratingCount?: number;
+  isActive?: boolean;
+  rejectionReason?: string | null;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  ownerPhone?: string | null;
+  reviewedBy?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BusinessEvent {
@@ -48,6 +64,10 @@ export interface BusinessEvent {
   endTime: string;
   imageUrl: string | null;
   isActive?: boolean;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ManagedUser {
@@ -57,6 +77,41 @@ export interface ManagedUser {
   phone: string | null;
   role: string;
   isActive: boolean;
+  createdAt: string;
+}
+
+export interface Admin {
+  id: string;
+  email: string;
+  name: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  iconName: string | null;
+  sortOrder: number;
+  businessCount: number;
+}
+
+export type BroadcastStatus = 'pending' | 'approved' | 'rejected';
+
+export interface BroadcastNotification {
+  id: string;
+  businessId: string;
+  businessName: string | null;
+  type: string;
+  title: string;
+  body: string;
+  relatedId: string | null;
+  status: BroadcastStatus;
+  rejectionReason: string | null;
+  senderName: string | null;
+  senderEmail: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
   createdAt: string;
 }
 

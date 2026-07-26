@@ -20,6 +20,7 @@ export function proxy(request: NextRequest) {
     pathname.startsWith('/businesses') ||
     pathname.startsWith('/users') ||
     pathname.startsWith('/events') ||
+    pathname.startsWith('/notifications') ||
     pathname.startsWith('/settings');
 
   if (isProtectedRoute && !token) {
@@ -34,5 +35,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/businesses/:path*', '/users/:path*', '/events/:path*', '/settings/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/businesses/:path*', '/users/:path*', '/events/:path*', '/notifications/:path*', '/settings/:path*', '/login'],
 };

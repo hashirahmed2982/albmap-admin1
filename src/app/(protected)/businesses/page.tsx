@@ -10,6 +10,7 @@ import {
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { BusinessDetailModal } from '@/components/BusinessDetailModal';
 import { useToast } from '@/components/ToastProvider';
 import type { Business } from '@/lib/types';
 
@@ -130,6 +131,7 @@ export default function BusinessesPage() {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Address</th>
+                <th className="px-4 py-3">Owner</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -139,12 +141,27 @@ export default function BusinessesPage() {
                 <tr key={b.id}>
                   <td className="px-4 py-3 font-medium text-gray-900">{b.name}</td>
                   <td className="px-4 py-3 text-gray-600">{b.category}</td>
-                  <td className="px-4 py-3 text-gray-600">{b.address}</td>
+                  <td className="px-4 py-3 text-gray-600">{b.formattedAddress}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    <div>{b.ownerName ?? '—'}</div>
+                    {b.ownerEmail && <div className="text-xs text-gray-400">{b.ownerEmail}</div>}
+                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={b.status} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      <BusinessDetailModal
+                        business={b}
+                        trigger={(open) => (
+                          <button
+                            onClick={open}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            View
+                          </button>
+                        )}
+                      />
                       {b.status === 'pending' && (
                         <>
                           <button

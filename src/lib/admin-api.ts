@@ -6,6 +6,9 @@ import type {
   ManagedUser,
   DashboardStats,
   ApiListResponse,
+  Admin,
+  Category,
+  BroadcastNotification,
 } from './types';
 
 // ---------------- Auth ----------------
@@ -91,5 +94,83 @@ export function setEventActive(id: string, isActive: boolean): Promise<void> {
   return apiFetch<void>(`/admin/events/${id}/active`, {
     method: 'PATCH',
     body: { isActive },
+  });
+}
+
+// ---------------- Admin accounts ----------------
+// Fixes a real gap: previously only one admin account existed (whatever
+// the backend's db:seed created), with no in-app way to add a second one
+// or remove access from a departing admin.
+
+export async function getAllAdmins(): Promise<Admin[]> {
+  const res = await apiFetch<ApiListResponse<Admin>>('/admin/admins');
+  return res.data;
+}
+
+export function createAdmin(email: string, password: string, name: string): Promise<Admin> {
+  return apiFetch<Admin>('/admin/admins', {
+    method: 'POST',
+    body: { email, password, name },
+  });
+}
+
+export function deleteAdmin(id: string): Promise<void> {
+  return apiFetch<void>(`/admin/admins/${id}`, { method: 'DELETE' });
+}
+
+// ---------------- Categories ----------------
+// Fixes a real gap: category names were previously fixed at whatever
+// db:seed created, with no way to add/rename/remove one without a direct
+// database edit. The mobile app already fetches categories dynamically
+// (GET /categories) — this just gives the admin a UI to actually manage
+// what that list contains.
+
+export async function getAllCategories(): Promise<Category[]> {
+  const res = await apiFetch<ApiListResponse<Category>>('/admin/categories');
+  return res.data;
+}
+
+export function createCategory(name: string, iconName?: string): Promise<Category> {
+  return apiFetch<Category>('/admin/categories', {
+    method: 'POST',
+    body: { name, iconName },
+  });
+}
+
+export function renameCategory(id: number, name: string): Promise<Category> {
+  return apiFetch<Category>(`/admin/categories/${id}`, {
+    method: 'PATCH',
+    body: { name },
+  });
+}
+
+export function deleteCategory(id: number): Promise<void> {
+  return apiFetch<void>(`/admin/categories/${id}`, { method: 'DELETE' });
+}
+
+// ---------------- Notifications ----------------
+// A business owner's broadcast sits pending here until an admin approves
+// it — approving is what actually triggers delivery to every registered
+// device (see the backend's notification.service.js reviewBroadcast()).
+
+export async function getPendingBroadcasts(): Promise<BroadcastNotification[]> {
+  const res = await apiFetch<ApiListResponse<BroadcastNotification>>('/admin/notifications/pending');
+  return res.data;
+}
+
+export async function getAllBroadcasts(status?: string): Promise<BroadcastNotification[]> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+  const res = await apiFetch<ApiListResponse<BroadcastNotification>>(`/admin/notifications${qs}`);
+  return res.data;
+}
+
+export function reviewBroadcast(
+  id: string,
+  decision: 'approved' | 'rejected',
+  reason?: string,
+): Promise<{ id: string; status: string; delivery: { delivered: boolean; reason?: string } }> {
+  return apiFetch(`/admin/notifications/${id}/review`, {
+    method: 'PATCH',
+    body: { decision, reason },
   });
 }

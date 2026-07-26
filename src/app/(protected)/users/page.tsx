@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getAllUsers, setUserActive } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
+import { parseServerDate } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { useToast } from '@/components/ToastProvider';
@@ -77,7 +78,7 @@ export default function UsersPage() {
                   <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
                   <td className="px-4 py-3 text-gray-600">{u.email}</td>
                   <td className="px-4 py-3 text-gray-600">{u.phone ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{new Date(u.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-gray-600">{parseServerDate(u.createdAt).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={u.isActive ? 'active' : 'inactive'} />
                   </td>

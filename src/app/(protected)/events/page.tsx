@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getAllEvents, setEventActive } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
+import { parseServerDate } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { EventDetailModal } from '@/components/EventDetailModal';
 import { useToast } from '@/components/ToastProvider';
 import type { BusinessEvent } from '@/lib/types';
 
@@ -56,6 +58,7 @@ export default function EventsPage() {
                 <th className="px-4 py-3">Business</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">Starts</th>
+                <th className="px-4 py-3">Ends</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
@@ -66,34 +69,48 @@ export default function EventsPage() {
                   <td className="px-4 py-3 font-medium text-gray-900">{e.name}</td>
                   <td className="px-4 py-3 text-gray-600">{e.businessName}</td>
                   <td className="px-4 py-3 text-gray-600">{e.category}</td>
-                  <td className="px-4 py-3 text-gray-600">{new Date(e.startTime).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-gray-600">{parseServerDate(e.startTime).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-gray-600">{parseServerDate(e.endTime).toLocaleString()}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={e.isActive === false ? 'inactive' : 'active'} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <ConfirmModal
-                      title={e.isActive === false ? 'Restore this event?' : 'Remove this event?'}
-                      description={
-                        e.isActive === false
-                          ? `"${e.name}" will become visible again.`
-                          : `"${e.name}" will be hidden from the public events feed.`
-                      }
-                      confirmLabel={e.isActive === false ? 'Restore' : 'Remove'}
-                      confirmStyle={e.isActive === false ? 'primary' : 'danger'}
-                      onConfirm={() => handleToggleActive(e.id, e.isActive === false)}
-                      trigger={(open) => (
-                        <button
-                          onClick={open}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                            e.isActive === false
-                              ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                              : 'bg-red-50 text-red-700 hover:bg-red-100'
-                          }`}
-                        >
-                          {e.isActive === false ? 'Restore' : 'Remove'}
-                        </button>
-                      )}
-                    />
+                    <div className="flex justify-end gap-2">
+                      <EventDetailModal
+                        event={e}
+                        trigger={(open) => (
+                          <button
+                            onClick={open}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            View
+                          </button>
+                        )}
+                      />
+                      <ConfirmModal
+                        title={e.isActive === false ? 'Restore this event?' : 'Remove this event?'}
+                        description={
+                          e.isActive === false
+                            ? `"${e.name}" will become visible again.`
+                            : `"${e.name}" will be hidden from the public events feed.`
+                        }
+                        confirmLabel={e.isActive === false ? 'Restore' : 'Remove'}
+                        confirmStyle={e.isActive === false ? 'primary' : 'danger'}
+                        onConfirm={() => handleToggleActive(e.id, e.isActive === false)}
+                        trigger={(open) => (
+                          <button
+                            onClick={open}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                              e.isActive === false
+                                ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                : 'bg-red-50 text-red-700 hover:bg-red-100'
+                            }`}
+                          >
+                            {e.isActive === false ? 'Restore' : 'Remove'}
+                          </button>
+                        )}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
