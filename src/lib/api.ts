@@ -3,7 +3,8 @@
 import { getAccessToken, getRefreshToken, storeTokens, clearTokens } from './tokens';
 import type { ApiErrorResponse } from './types';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/v1';
+// export const API_BASE_URL =  'http://localhost:4000/v1';
+export const API_BASE_URL =  'http://167.233.144.118:4000/v1';
 
 export class ApiError extends Error {
   status: number;
