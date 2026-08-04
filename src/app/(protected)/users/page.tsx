@@ -61,56 +61,57 @@ export default function UsersPage() {
         ) : users.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">No users found</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Joined</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {users.map((u) => (
-                <tr key={u.id}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{u.email}</td>
-                  <td className="px-4 py-3 text-gray-600">{u.phone ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{parseServerDate(u.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={u.isActive ? 'active' : 'inactive'} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <ConfirmModal
-                      title={u.isActive ? 'Ban this user?' : 'Reactivate this user?'}
-                      description={
-                        u.isActive
-                          ? `"${u.name}" will lose access to their account and businesses immediately.`
-                          : `"${u.name}" will regain access to their account.`
-                      }
-                      confirmLabel={u.isActive ? 'Ban' : 'Reactivate'}
-                      confirmStyle={u.isActive ? 'danger' : 'primary'}
-                      onConfirm={() => handleToggleActive(u.id, !u.isActive)}
-                      trigger={(open) => (
-                        <button
-                          onClick={open}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                            u.isActive
-                              ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {u.isActive ? 'Ban' : 'Reactivate'}
-                        </button>
-                      )}
-                    />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Phone</th>
+                  <th className="px-4 py-3">Joined</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                    <td className="px-4 py-3 text-gray-600">{u.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{parseServerDate(u.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={u.isActive ? 'active' : 'inactive'} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <ConfirmModal
+                        title={u.isActive ? 'Ban this user?' : 'Reactivate this user?'}
+                        description={
+                          u.isActive
+                            ? `"${u.name}" will lose access to their account and businesses immediately.`
+                            : `"${u.name}" will regain access to their account.`
+                        }
+                        confirmLabel={u.isActive ? 'Ban' : 'Reactivate'}
+                        confirmStyle={u.isActive ? 'danger' : 'primary'}
+                        onConfirm={() => handleToggleActive(u.id, !u.isActive)}
+                        trigger={(open) => (
+                          <button
+                            onClick={open}
+                            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${u.isActive
+                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              }`}
+                          >
+                            {u.isActive ? 'Ban' : 'Reactivate'}
+                          </button>
+                        )}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

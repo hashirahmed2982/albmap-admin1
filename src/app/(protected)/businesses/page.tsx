@@ -81,17 +81,15 @@ export default function BusinessesPage() {
       <div className="mt-6 flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setTab('pending')}
-          className={`px-4 py-2 text-sm font-medium ${
-            tab === 'pending' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:text-gray-700'
-          }`}
+          className={`px-4 py-2 text-sm font-medium ${tab === 'pending' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
         >
           Pending Review
         </button>
         <button
           onClick={() => setTab('all')}
-          className={`px-4 py-2 text-sm font-medium ${
-            tab === 'all' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:text-gray-700'
-          }`}
+          className={`px-4 py-2 text-sm font-medium ${tab === 'all' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:text-gray-700'
+            }`}
         >
           All Businesses
         </button>
@@ -125,92 +123,94 @@ export default function BusinessesPage() {
         ) : businesses.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">No businesses found</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3">Address</th>
-                <th className="px-4 py-3">Owner</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {businesses.map((b) => (
-                <tr key={b.id}>
-                  <td className="px-4 py-3 font-medium text-gray-900">{b.name}</td>
-                  <td className="px-4 py-3 text-gray-600">{b.category}</td>
-                  <td className="px-4 py-3 text-gray-600">{b.formattedAddress}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    <div>{b.ownerName ?? '—'}</div>
-                    {b.ownerEmail && <div className="text-xs text-gray-400">{b.ownerEmail}</div>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={b.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-2">
-                      <BusinessDetailModal
-                        business={b}
-                        trigger={(open) => (
-                          <button
-                            onClick={open}
-                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                          >
-                            View
-                          </button>
-                        )}
-                      />
-                      {b.status === 'pending' && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(b.id)}
-                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-                          >
-                            Approve
-                          </button>
-                          <ConfirmModal
-                            title="Reject this business?"
-                            description={`"${b.name}" will not appear publicly. Optionally explain why — this is shown to the owner.`}
-                            confirmLabel="Reject"
-                            confirmStyle="danger"
-                            requireReason
-                            onConfirm={(reason) => handleReject(b.id, reason)}
-                            trigger={(open) => (
-                              <button
-                                onClick={open}
-                                className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-                              >
-                                Reject
-                              </button>
-                            )}
-                          />
-                        </>
-                      )}
-                      {b.status === 'approved' && (
-                        <ConfirmModal
-                          title="Deactivate this business?"
-                          description={`"${b.name}" will be hidden from the public map until reactivated.`}
-                          confirmLabel="Deactivate"
-                          confirmStyle="danger"
-                          onConfirm={() => handleToggleActive(b.id, false)}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Address</th>
+                  <th className="px-4 py-3">Owner</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {businesses.map((b) => (
+                  <tr key={b.id}>
+                    <td className="px-4 py-3 font-medium text-gray-900">{b.name}</td>
+                    <td className="px-4 py-3 text-gray-600">{b.category}</td>
+                    <td className="px-4 py-3 text-gray-600">{b.formattedAddress}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <div>{b.ownerName ?? '—'}</div>
+                      {b.ownerEmail && <div className="text-xs text-gray-400">{b.ownerEmail}</div>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={b.status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <BusinessDetailModal
+                          business={b}
                           trigger={(open) => (
                             <button
                               onClick={open}
                               className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                             >
-                              Deactivate
+                              View
                             </button>
                           )}
                         />
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        {b.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(b.id)}
+                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                            >
+                              Approve
+                            </button>
+                            <ConfirmModal
+                              title="Reject this business?"
+                              description={`"${b.name}" will not appear publicly. Optionally explain why — this is shown to the owner.`}
+                              confirmLabel="Reject"
+                              confirmStyle="danger"
+                              requireReason
+                              onConfirm={(reason) => handleReject(b.id, reason)}
+                              trigger={(open) => (
+                                <button
+                                  onClick={open}
+                                  className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                                >
+                                  Reject
+                                </button>
+                              )}
+                            />
+                          </>
+                        )}
+                        {b.status === 'approved' && (
+                          <ConfirmModal
+                            title="Deactivate this business?"
+                            description={`"${b.name}" will be hidden from the public map until reactivated.`}
+                            confirmLabel="Deactivate"
+                            confirmStyle="danger"
+                            onConfirm={() => handleToggleActive(b.id, false)}
+                            trigger={(open) => (
+                              <button
+                                onClick={open}
+                                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                              >
+                                Deactivate
+                              </button>
+                            )}
+                          />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

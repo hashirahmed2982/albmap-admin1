@@ -384,16 +384,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-5">
-        <h2 className="text-sm font-semibold text-amber-900">Not yet implemented</h2>
-        <p className="mt-2 text-sm text-amber-800">
-          These still require new backend endpoints that don&apos;t exist yet:
-        </p>
-        <ul className="mt-3 list-inside list-disc space-y-1 text-sm text-amber-800">
-          <li>Email notification configuration</li>
-          <li>System-wide parameters (e.g. default search radius)</li>
-        </ul>
-      </div>
     </div>
   );
 }
