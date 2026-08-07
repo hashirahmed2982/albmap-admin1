@@ -7,28 +7,60 @@ import { parseServerDate } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { EventDetailModal } from '@/components/EventDetailModal';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { Pagination } from '@/components/Pagination';
 import { useToast } from '@/components/ToastProvider';
-import type { BusinessEvent } from '@/lib/types';
+import type { BusinessEvent, PaginationMeta } from '@/lib/types';
+
+const EMPTY_PAGINATION: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0 };
 
 export default function EventsPage() {
   const [events, setEvents] = useState<BusinessEvent[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta>(EMPTY_PAGINATION);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      setEvents(await getAllEvents());
+      const res = await getAllEvents({
+        search: search || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        page,
+        limit,
+      });
+      setEvents(res.data);
+      setPagination(res.pagination);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to load events', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [showToast]);
+  }, [search, dateFrom, dateTo, page, limit, showToast]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setPage(1);
+  }
+  function handleDateRangeChange(range: { dateFrom: string; dateTo: string }) {
+    setDateFrom(range.dateFrom);
+    setDateTo(range.dateTo);
+    setPage(1);
+  }
+  function handleLimitChange(newLimit: number) {
+    setLimit(newLimit);
+    setPage(1);
+  }
 
   async function handleToggleActive(id: string, isActive: boolean) {
     try {
@@ -45,7 +77,18 @@ export default function EventsPage() {
       <h1 className="text-2xl font-semibold text-gray-900">Events</h1>
       <p className="mt-1 text-sm text-gray-500">Moderate events across all businesses</p>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          placeholder="Search by event or business name…"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-72 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+        />
+        <DateRangeFilter label="Starting" dateFrom={dateFrom} dateTo={dateTo} onChange={handleDateRangeChange} />
+      </div>
+
+      <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-gray-500">Loading…</div>
         ) : events.length === 0 ? (
@@ -117,6 +160,9 @@ export default function EventsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {!isLoading && events.length > 0 && (
+          <Pagination meta={pagination} onPageChange={setPage} onLimitChange={handleLimitChange} />
         )}
       </div>
     </div>

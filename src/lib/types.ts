@@ -136,6 +136,28 @@ export interface ApiListResponse<T> {
   data: T[];
 }
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationMeta;
+}
+
+/** Shared query shape for every paginated admin list endpoint
+ * (businesses/pending, businesses, users, events) — see admin-api.ts. */
+export interface ListParams {
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+}
+
 export interface ApiErrorResponse {
   message: string;
 }
