@@ -8,13 +8,15 @@ import {
   setBusinessActive,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
+import { parseServerDate } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BusinessDetailModal } from '@/components/BusinessDetailModal';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
+import { SortableHeader } from '@/components/SortableHeader';
 import { useToast } from '@/components/ToastProvider';
-import type { Business, PaginationMeta } from '@/lib/types';
+import type { Business, PaginationMeta, SortOrder } from '@/lib/types';
 
 type Tab = 'pending' | 'all';
 
@@ -31,6 +33,11 @@ export default function BusinessesPage() {
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  // Empty sortBy means "no explicit sort" — each tab keeps its own
+  // existing default (Pending: oldest-first; All: newest-first) until
+  // the admin actually clicks a column header.
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -42,6 +49,8 @@ export default function BusinessesPage() {
         dateTo: dateTo || undefined,
         page,
         limit,
+        sortBy: sortBy || undefined,
+        sortOrder: sortBy ? sortOrder : undefined,
       };
       const res =
         tab === 'pending'
@@ -54,7 +63,7 @@ export default function BusinessesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [tab, statusFilter, search, dateFrom, dateTo, page, limit, showToast]);
+  }, [tab, statusFilter, search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
 
   useEffect(() => {
     load();
@@ -83,6 +92,11 @@ export default function BusinessesPage() {
   }
   function handleLimitChange(newLimit: number) {
     setLimit(newLimit);
+    setPage(1);
+  }
+  function handleSort(newSortBy: string, newSortOrder: SortOrder) {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
     setPage(1);
   }
 
@@ -171,10 +185,25 @@ export default function BusinessesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Name</th>
+                  <SortableHeader
+                    label="Name"
+                    sortKey="name"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="asc"
+                  />
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Address</th>
                   <th className="px-4 py-3">Owner</th>
+                  <SortableHeader
+                    label="Submitted"
+                    sortKey="createdAt"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="desc"
+                  />
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -188,6 +217,9 @@ export default function BusinessesPage() {
                     <td className="px-4 py-3 text-gray-600">
                       <div>{b.ownerName ?? '—'}</div>
                       {b.ownerEmail && <div className="text-xs text-gray-400">{b.ownerEmail}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {b.createdAt ? parseServerDate(b.createdAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={b.status} />

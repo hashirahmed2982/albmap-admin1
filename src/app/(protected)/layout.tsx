@@ -4,12 +4,18 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInactivityLogout } from '@/hooks/useInactivityLogout';
 import { Sidebar } from '@/components/Sidebar';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Only counts down once actually signed in — see the hook's own
+  // comment for why this is admin-portal-only, not shared with the
+  // mobile app or website.
+  useInactivityLogout(!!user);
 
   useEffect(() => {
     if (!isLoading && !user) {

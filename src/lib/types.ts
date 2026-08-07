@@ -148,14 +148,22 @@ export interface PaginatedResponse<T> {
   pagination: PaginationMeta;
 }
 
+export type SortOrder = 'asc' | 'desc';
+
 /** Shared query shape for every paginated admin list endpoint
- * (businesses/pending, businesses, users, events) — see admin-api.ts. */
+ * (businesses/pending, businesses, users, events) — see admin-api.ts.
+ * `sortBy` is whatever column key that table's SortableHeader passes
+ * (e.g. 'name' | 'createdAt' | 'startTime') — validated server-side
+ * against a per-table allowlist, not typed narrowly here since it
+ * differs per table. */
 export interface ListParams {
   search?: string;
   dateFrom?: string;
   dateTo?: string;
   page?: number;
   limit?: number;
+  sortBy?: string;
+  sortOrder?: SortOrder;
 }
 
 export interface ApiErrorResponse {

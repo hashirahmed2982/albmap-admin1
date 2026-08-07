@@ -8,8 +8,9 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
+import { SortableHeader } from '@/components/SortableHeader';
 import { useToast } from '@/components/ToastProvider';
-import type { ManagedUser, PaginationMeta } from '@/lib/types';
+import type { ManagedUser, PaginationMeta, SortOrder } from '@/lib/types';
 
 const EMPTY_PAGINATION: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0 };
 
@@ -22,6 +23,11 @@ export default function UsersPage() {
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  // Empty sortBy means "no explicit sort" — the backend falls back to
+  // its own default (createdAt desc), same ordering as before sorting
+  // existed, until the admin actually clicks a column header.
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -33,6 +39,8 @@ export default function UsersPage() {
         dateTo: dateTo || undefined,
         page,
         limit,
+        sortBy: sortBy || undefined,
+        sortOrder: sortBy ? sortOrder : undefined,
       });
       setUsers(res.data);
       setPagination(res.pagination);
@@ -41,7 +49,7 @@ export default function UsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, dateFrom, dateTo, page, limit, showToast]);
+  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
 
   useEffect(() => {
     load();
@@ -61,6 +69,11 @@ export default function UsersPage() {
   }
   function handleLimitChange(newLimit: number) {
     setLimit(newLimit);
+    setPage(1);
+  }
+  function handleSort(newSortBy: string, newSortOrder: SortOrder) {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
     setPage(1);
   }
 
@@ -100,10 +113,24 @@ export default function UsersPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Name</th>
+                  <SortableHeader
+                    label="Name"
+                    sortKey="name"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="asc"
+                  />
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Phone</th>
-                  <th className="px-4 py-3">Joined</th>
+                  <SortableHeader
+                    label="Joined"
+                    sortKey="createdAt"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="desc"
+                  />
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>

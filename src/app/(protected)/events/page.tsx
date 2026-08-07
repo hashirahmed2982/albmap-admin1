@@ -9,8 +9,9 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { EventDetailModal } from '@/components/EventDetailModal';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
+import { SortableHeader } from '@/components/SortableHeader';
 import { useToast } from '@/components/ToastProvider';
-import type { BusinessEvent, PaginationMeta } from '@/lib/types';
+import type { BusinessEvent, PaginationMeta, SortOrder } from '@/lib/types';
 
 const EMPTY_PAGINATION: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0 };
 
@@ -23,6 +24,11 @@ export default function EventsPage() {
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  // Empty sortBy means "no explicit sort" — the backend falls back to
+  // its own default (startTime desc), same ordering as before sorting
+  // existed, until the admin actually clicks a column header.
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -34,6 +40,8 @@ export default function EventsPage() {
         dateTo: dateTo || undefined,
         page,
         limit,
+        sortBy: sortBy || undefined,
+        sortOrder: sortBy ? sortOrder : undefined,
       });
       setEvents(res.data);
       setPagination(res.pagination);
@@ -42,7 +50,7 @@ export default function EventsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, dateFrom, dateTo, page, limit, showToast]);
+  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
 
   useEffect(() => {
     load();
@@ -59,6 +67,11 @@ export default function EventsPage() {
   }
   function handleLimitChange(newLimit: number) {
     setLimit(newLimit);
+    setPage(1);
+  }
+  function handleSort(newSortBy: string, newSortOrder: SortOrder) {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
     setPage(1);
   }
 
@@ -98,10 +111,24 @@ export default function EventsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Event</th>
+                  <SortableHeader
+                    label="Event"
+                    sortKey="name"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="asc"
+                  />
                   <th className="px-4 py-3">Business</th>
                   <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Starts</th>
+                  <SortableHeader
+                    label="Starts"
+                    sortKey="startTime"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="desc"
+                  />
                   <th className="px-4 py-3">Ends</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
