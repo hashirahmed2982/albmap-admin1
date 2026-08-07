@@ -41,37 +41,50 @@ export function Pagination({
         </select>
       </div>
 
+      {/* "« First"/"‹ Prev"/etc as full words wrap mid-button below `sm` —
+          five items is too tight for a ~320px phone screen at this font
+          size. Icon-only below `sm`, full labels at `sm` and up (verified
+          against a real compiled build at 320/375px — full labels wrapped
+          to two lines inside each button; symbols alone don't). */}
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(1)}
           disabled={page <= 1}
           className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          aria-label="First page"
         >
-          « First
+          <span className="sm:hidden">«</span>
+          <span className="hidden sm:inline">« First</span>
         </button>
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
           className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          aria-label="Previous page"
         >
-          ‹ Prev
+          <span className="sm:hidden">‹</span>
+          <span className="hidden sm:inline">‹ Prev</span>
         </button>
-        <span className="px-2 text-xs text-gray-600">
+        <span className="whitespace-nowrap px-1 text-xs text-gray-600 sm:px-2">
           Page {totalPages === 0 ? 0 : page} of {totalPages}
         </span>
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
           className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          aria-label="Next page"
         >
-          Next ›
+          <span className="sm:hidden">›</span>
+          <span className="hidden sm:inline">Next ›</span>
         </button>
         <button
           onClick={() => onPageChange(totalPages)}
           disabled={page >= totalPages}
           className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          aria-label="Last page"
         >
-          Last »
+          <span className="sm:hidden">»</span>
+          <span className="hidden sm:inline">Last »</span>
         </button>
       </div>
     </div>

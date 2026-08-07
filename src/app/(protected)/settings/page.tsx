@@ -159,7 +159,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Admin accounts</h2>
             <p className="mt-0.5 text-xs text-gray-500">
@@ -168,7 +168,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => setShowAddForm((v) => !v)}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+            className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
           >
             {showAddForm ? 'Cancel' : '+ Add admin'}
           </button>
@@ -222,15 +222,22 @@ export default function SettingsPage() {
             <p className="py-4 text-center text-sm text-gray-500">No admins found</p>
           ) : (
             admins.map((admin) => (
-              <div key={admin.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
+              <div key={admin.id} className="flex items-center justify-between gap-3 py-3">
+                {/* min-w-0 is load-bearing here, not decorative — a flex
+                    item's default min-width is its content's intrinsic
+                    width, and an email has no spaces to wrap at. Without
+                    this, a long email pushes the Remove button
+                    (unreachable) off the edge of the card instead of the
+                    email truncating — confirmed at 375px against a real
+                    compiled build before this fix. */}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900">
                     {admin.name}
                     {admin.id === user?.id && (
                       <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">You</span>
                     )}
                   </p>
-                  <p className="text-xs text-gray-500">{admin.email}</p>
+                  <p className="truncate text-xs text-gray-500">{admin.email}</p>
                 </div>
                 {admin.id !== user?.id && (
                   <ConfirmModal
@@ -242,7 +249,7 @@ export default function SettingsPage() {
                     trigger={(open) => (
                       <button
                         onClick={open}
-                        className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                        className="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
                       >
                         Remove
                       </button>
@@ -256,7 +263,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Business categories</h2>
             <p className="mt-0.5 text-xs text-gray-500">
@@ -265,7 +272,7 @@ export default function SettingsPage() {
           </div>
           <button
             onClick={() => setShowAddCategoryForm((v) => !v)}
-            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+            className="shrink-0 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
           >
             {showAddCategoryForm ? 'Cancel' : '+ Add category'}
           </button>
@@ -314,7 +321,7 @@ export default function SettingsPage() {
             <p className="py-4 text-center text-sm text-gray-500">No categories found</p>
           ) : (
             categories.map((category) => (
-              <div key={category.id} className="flex items-center justify-between py-3">
+              <div key={category.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 {editingCategoryId === category.id ? (
                   <div className="flex flex-1 items-center gap-2">
                     <input
@@ -326,30 +333,30 @@ export default function SettingsPage() {
                         if (e.key === 'Enter') saveRename(category.id);
                         if (e.key === 'Escape') setEditingCategoryId(null);
                       }}
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
                     />
                     <button
                       onClick={() => saveRename(category.id)}
-                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                      className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                     >
                       Save
                     </button>
                     <button
                       onClick={() => setEditingCategoryId(null)}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{category.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">{category.name}</p>
                       <p className="text-xs text-gray-500">
                         {category.businessCount} {category.businessCount === 1 ? 'business' : 'businesses'}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 gap-2">
                       <button
                         onClick={() => startRenaming(category)}
                         className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
