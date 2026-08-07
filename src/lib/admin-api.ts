@@ -9,6 +9,10 @@ import type {
   Admin,
   Category,
   BroadcastNotification,
+  SiteContent,
+  AboutContent,
+  SocialLinks,
+  LegalPageContent,
 } from './types';
 
 // ---------------- Auth ----------------
@@ -172,5 +176,39 @@ export function reviewBroadcast(
   return apiFetch(`/admin/notifications/${id}/review`, {
     method: 'PATCH',
     body: { decision, reason },
+  });
+}
+
+// ---------------- Site content ----------------
+// About Us, social links, Privacy Policy, and Terms & Conditions — see
+// albmap-backend's content module. GET /content is public (both the
+// mobile app and website read it unauthenticated), so this portal reads
+// it the same way rather than duplicating that call under /admin; only
+// the PUT is admin-only.
+
+export function getContent(): Promise<SiteContent> {
+  return apiFetch<SiteContent>('/content', { skipAuth: true });
+}
+
+export function updateAboutUs(data: Omit<AboutContent, 'updatedAt'>): Promise<AboutContent> {
+  return apiFetch<AboutContent>('/admin/content/about_us', { method: 'PUT', body: data });
+}
+
+export function updateSocialLinks(data: Omit<SocialLinks, 'updatedAt'>): Promise<SocialLinks> {
+  return apiFetch<SocialLinks>('/admin/content/social_links', { method: 'PUT', body: data });
+}
+
+export function updatePrivacyPolicy(
+  data: Omit<LegalPageContent, 'updatedAt'>,
+): Promise<LegalPageContent> {
+  return apiFetch<LegalPageContent>('/admin/content/privacy_policy', { method: 'PUT', body: data });
+}
+
+export function updateTermsConditions(
+  data: Omit<LegalPageContent, 'updatedAt'>,
+): Promise<LegalPageContent> {
+  return apiFetch<LegalPageContent>('/admin/content/terms_conditions', {
+    method: 'PUT',
+    body: data,
   });
 }

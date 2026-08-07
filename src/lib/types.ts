@@ -139,3 +139,46 @@ export interface ApiListResponse<T> {
 export interface ApiErrorResponse {
   message: string;
 }
+
+// ---------------- Site content ----------------
+// Mirrors albmap-backend's site_content table (see content.service.js) —
+// what used to be hardcoded independently in both the mobile app's
+// localization files and the website's next-intl messages/literal JSX,
+// now editable from here and read live by both clients via GET /content.
+
+export interface AboutContent {
+  tagline: string;
+  missionTitle: string;
+  missionBody: string;
+  visionTitle: string;
+  visionBody: string;
+  updatedAt?: string;
+}
+
+export interface SocialLinks {
+  facebook: string | null;
+  instagram: string | null;
+  twitter: string | null;
+  tiktok: string | null;
+  youtube: string | null;
+  linkedin: string | null;
+  updatedAt?: string;
+}
+
+export interface LegalSection {
+  heading: string;
+  body: string;
+}
+
+export interface LegalPageContent {
+  title: string;
+  sections: LegalSection[];
+  updatedAt?: string;
+}
+
+export interface SiteContent {
+  aboutUs: AboutContent | null;
+  socialLinks: SocialLinks | null;
+  privacyPolicy: LegalPageContent | null;
+  termsConditions: LegalPageContent | null;
+}
