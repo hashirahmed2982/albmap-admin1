@@ -17,9 +17,9 @@ export function CategoryBarChart({
     <div className="space-y-4">
       {data.map((item, i) => (
         <div key={item.category}>
-          <div className="mb-1 flex items-center justify-between text-sm">
-            <span className="font-medium text-gray-700">{item.category}</span>
-            <span className="font-semibold text-gray-900">{item.count}</span>
+          <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+            <span className="truncate font-medium text-gray-700">{item.category}</span>
+            <span className="shrink-0 font-semibold text-gray-900">{item.count}</span>
           </div>
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
             <div

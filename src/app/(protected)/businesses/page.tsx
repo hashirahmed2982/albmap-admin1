@@ -8,40 +8,97 @@ import {
   setBusinessActive,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
+import { parseServerDate } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BusinessDetailModal } from '@/components/BusinessDetailModal';
+import { DateRangeFilter } from '@/components/DateRangeFilter';
+import { Pagination } from '@/components/Pagination';
+import { SortableHeader } from '@/components/SortableHeader';
 import { useToast } from '@/components/ToastProvider';
-import type { Business } from '@/lib/types';
+import type { Business, PaginationMeta, SortOrder } from '@/lib/types';
 
 type Tab = 'pending' | 'all';
+
+const EMPTY_PAGINATION: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0 };
 
 export default function BusinessesPage() {
   const [tab, setTab] = useState<Tab>('pending');
   const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [pagination, setPagination] = useState<PaginationMeta>(EMPTY_PAGINATION);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  // Empty sortBy means "no explicit sort" — each tab keeps its own
+  // existing default (Pending: oldest-first; All: newest-first) until
+  // the admin actually clicks a column header.
+  const [sortBy, setSortBy] = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data =
+      const params = {
+        search: search || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        page,
+        limit,
+        sortBy: sortBy || undefined,
+        sortOrder: sortBy ? sortOrder : undefined,
+      };
+      const res =
         tab === 'pending'
-          ? await getPendingBusinesses()
-          : await getAllBusinesses({ status: statusFilter || undefined, search: search || undefined });
-      setBusinesses(data);
+          ? await getPendingBusinesses(params)
+          : await getAllBusinesses({ ...params, status: statusFilter || undefined });
+      setBusinesses(res.data);
+      setPagination(res.pagination);
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to load businesses', 'error');
     } finally {
       setIsLoading(false);
     }
-  }, [tab, statusFilter, search, showToast]);
+  }, [tab, statusFilter, search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // Every filter/tab change below also resets to page 1 — a different
+  // tab or filter has a different result set, so staying on (say) page 5
+  // would likely just show an empty page instead of what was just asked
+  // for.
+  function handleTabChange(newTab: Tab) {
+    setTab(newTab);
+    setPage(1);
+  }
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setPage(1);
+  }
+  function handleStatusFilterChange(value: string) {
+    setStatusFilter(value);
+    setPage(1);
+  }
+  function handleDateRangeChange(range: { dateFrom: string; dateTo: string }) {
+    setDateFrom(range.dateFrom);
+    setDateTo(range.dateTo);
+    setPage(1);
+  }
+  function handleLimitChange(newLimit: number) {
+    setLimit(newLimit);
+    setPage(1);
+  }
+  function handleSort(newSortBy: string, newSortOrder: SortOrder) {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+    setPage(1);
+  }
 
   async function handleApprove(id: string) {
     try {
@@ -80,14 +137,14 @@ export default function BusinessesPage() {
 
       <div className="mt-6 flex gap-2 border-b border-gray-200">
         <button
-          onClick={() => setTab('pending')}
+          onClick={() => handleTabChange('pending')}
           className={`px-4 py-2 text-sm font-medium ${tab === 'pending' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:text-gray-700'
             }`}
         >
           Pending Review
         </button>
         <button
-          onClick={() => setTab('all')}
+          onClick={() => handleTabChange('all')}
           className={`px-4 py-2 text-sm font-medium ${tab === 'all' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-500 hover:text-gray-700'
             }`}
         >
@@ -95,18 +152,18 @@ export default function BusinessesPage() {
         </button>
       </div>
 
-      {tab === 'all' && (
-        <div className="mt-4 flex gap-3">
-          <input
-            type="text"
-            placeholder="Search by name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-          />
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          placeholder="Search by name…"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+        />
+        {tab === 'all' && (
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
           >
             <option value="">All statuses</option>
@@ -114,8 +171,9 @@ export default function BusinessesPage() {
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
-        </div>
-      )}
+        )}
+        <DateRangeFilter label="Submitted" dateFrom={dateFrom} dateTo={dateTo} onChange={handleDateRangeChange} />
+      </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {isLoading ? (
@@ -127,10 +185,25 @@ export default function BusinessesPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3">Name</th>
+                  <SortableHeader
+                    label="Name"
+                    sortKey="name"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="asc"
+                  />
                   <th className="px-4 py-3">Category</th>
                   <th className="px-4 py-3">Address</th>
                   <th className="px-4 py-3">Owner</th>
+                  <SortableHeader
+                    label="Submitted"
+                    sortKey="createdAt"
+                    activeSortBy={sortBy}
+                    activeSortOrder={sortOrder}
+                    onSort={handleSort}
+                    defaultOrder="desc"
+                  />
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -144,6 +217,9 @@ export default function BusinessesPage() {
                     <td className="px-4 py-3 text-gray-600">
                       <div>{b.ownerName ?? '—'}</div>
                       {b.ownerEmail && <div className="text-xs text-gray-400">{b.ownerEmail}</div>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      {b.createdAt ? parseServerDate(b.createdAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={b.status} />
@@ -211,6 +287,9 @@ export default function BusinessesPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {!isLoading && businesses.length > 0 && (
+          <Pagination meta={pagination} onPageChange={setPage} onLimitChange={handleLimitChange} />
         )}
       </div>
     </div>

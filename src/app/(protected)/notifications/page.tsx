@@ -120,7 +120,14 @@ export default function NotificationsPage() {
         ) : (
           notifications.map((n) => (
             <div key={n.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
+              {/* flex-col on mobile — with the Approve/Reject buttons
+                  staying side-by-side on the same row as the title
+                  (shrink-0, so they never give up space), a long title
+                  was getting truncated down to a handful of characters.
+                  Confirmed against a real compiled build before this
+                  fix: buttons pushed the title to ~4 visible characters
+                  at 320px. */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h3 className="truncate text-base font-semibold text-gray-900">{n.title}</h3>

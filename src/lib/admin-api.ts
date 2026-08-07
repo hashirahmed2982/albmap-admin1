@@ -6,10 +6,33 @@ import type {
   ManagedUser,
   DashboardStats,
   ApiListResponse,
+  PaginatedResponse,
+  ListParams,
   Admin,
   Category,
   BroadcastNotification,
+  SiteContent,
+  AboutContent,
+  SocialLinks,
+  LegalPageContent,
 } from './types';
+
+/** Serializes a ListParams (+ any extra string params) into a "?a=b&c=d"
+ * query string, omitting anything empty/undefined — shared by every
+ * paginated list call below so each one isn't hand-rolling its own
+ * URLSearchParams. Accepts any plain params object (ListParams plus
+ * whatever extra filter fields a specific endpoint adds, e.g.
+ * getAllBusinesses' `status`) — the index-signature cast is just to
+ * satisfy Object.entries' typing, every value is still a plain
+ * string/number/undefined at runtime. */
+function buildListQuery(params: object): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params as Record<string, string | number | undefined>)) {
+    if (value !== undefined && value !== '') qs.set(key, String(value));
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : '';
+}
 
 // ---------------- Auth ----------------
 
@@ -33,21 +56,14 @@ export function getDashboardStats(): Promise<DashboardStats> {
 
 // ---------------- Businesses ----------------
 
-export async function getPendingBusinesses(): Promise<Business[]> {
-  const res = await apiFetch<ApiListResponse<Business>>('/admin/businesses/pending');
-  return res.data;
+export function getPendingBusinesses(params: ListParams = {}): Promise<PaginatedResponse<Business>> {
+  return apiFetch<PaginatedResponse<Business>>(`/admin/businesses/pending${buildListQuery(params)}`);
 }
 
-export async function getAllBusinesses(params: {
-  status?: string;
-  search?: string;
-} = {}): Promise<Business[]> {
-  const query = new URLSearchParams();
-  if (params.status) query.set('status', params.status);
-  if (params.search) query.set('search', params.search);
-  const qs = query.toString();
-  const res = await apiFetch<ApiListResponse<Business>>(`/admin/businesses${qs ? `?${qs}` : ''}`);
-  return res.data;
+export function getAllBusinesses(
+  params: ListParams & { status?: string } = {},
+): Promise<PaginatedResponse<Business>> {
+  return apiFetch<PaginatedResponse<Business>>(`/admin/businesses${buildListQuery(params)}`);
 }
 
 export function reviewBusiness(
@@ -70,10 +86,8 @@ export function setBusinessActive(id: string, isActive: boolean): Promise<Busine
 
 // ---------------- Users ----------------
 
-export async function getAllUsers(search?: string): Promise<ManagedUser[]> {
-  const qs = search ? `?search=${encodeURIComponent(search)}` : '';
-  const res = await apiFetch<ApiListResponse<ManagedUser>>(`/admin/users${qs}`);
-  return res.data;
+export function getAllUsers(params: ListParams = {}): Promise<PaginatedResponse<ManagedUser>> {
+  return apiFetch<PaginatedResponse<ManagedUser>>(`/admin/users${buildListQuery(params)}`);
 }
 
 export function setUserActive(id: string, isActive: boolean): Promise<void> {
@@ -85,9 +99,8 @@ export function setUserActive(id: string, isActive: boolean): Promise<void> {
 
 // ---------------- Events ----------------
 
-export async function getAllEvents(): Promise<BusinessEvent[]> {
-  const res = await apiFetch<ApiListResponse<BusinessEvent>>('/admin/events');
-  return res.data;
+export function getAllEvents(params: ListParams = {}): Promise<PaginatedResponse<BusinessEvent>> {
+  return apiFetch<PaginatedResponse<BusinessEvent>>(`/admin/events${buildListQuery(params)}`);
 }
 
 export function setEventActive(id: string, isActive: boolean): Promise<void> {
@@ -172,5 +185,39 @@ export function reviewBroadcast(
   return apiFetch(`/admin/notifications/${id}/review`, {
     method: 'PATCH',
     body: { decision, reason },
+  });
+}
+
+// ---------------- Site content ----------------
+// About Us, social links, Privacy Policy, and Terms & Conditions — see
+// albmap-backend's content module. GET /content is public (both the
+// mobile app and website read it unauthenticated), so this portal reads
+// it the same way rather than duplicating that call under /admin; only
+// the PUT is admin-only.
+
+export function getContent(): Promise<SiteContent> {
+  return apiFetch<SiteContent>('/content', { skipAuth: true });
+}
+
+export function updateAboutUs(data: Omit<AboutContent, 'updatedAt'>): Promise<AboutContent> {
+  return apiFetch<AboutContent>('/admin/content/about_us', { method: 'PUT', body: data });
+}
+
+export function updateSocialLinks(data: Omit<SocialLinks, 'updatedAt'>): Promise<SocialLinks> {
+  return apiFetch<SocialLinks>('/admin/content/social_links', { method: 'PUT', body: data });
+}
+
+export function updatePrivacyPolicy(
+  data: Omit<LegalPageContent, 'updatedAt'>,
+): Promise<LegalPageContent> {
+  return apiFetch<LegalPageContent>('/admin/content/privacy_policy', { method: 'PUT', body: data });
+}
+
+export function updateTermsConditions(
+  data: Omit<LegalPageContent, 'updatedAt'>,
+): Promise<LegalPageContent> {
+  return apiFetch<LegalPageContent>('/admin/content/terms_conditions', {
+    method: 'PUT',
+    body: data,
   });
 }
