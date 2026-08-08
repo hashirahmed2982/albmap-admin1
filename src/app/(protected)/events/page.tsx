@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getAllEvents, setEventActive } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
-import { parseServerDate } from '@/lib/dates';
+import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { EventDetailModal } from '@/components/EventDetailModal';
@@ -34,10 +34,11 @@ export default function EventsPage() {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
+      const utcRange = localDateRangeToUtcBounds(dateFrom, dateTo);
       const res = await getAllEvents({
         search: search || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
+        dateFrom: utcRange.dateFrom,
+        dateTo: utcRange.dateTo,
         page,
         limit,
         sortBy: sortBy || undefined,
@@ -74,6 +75,12 @@ export default function EventsPage() {
     setSortOrder(newSortOrder);
     setPage(1);
   }
+
+  // See businesses/page.tsx's identical comment — mirrors the real
+  // server-side default (startTime desc) so the header arrows never look
+  // neutral/unsorted before an explicit column click.
+  const effectiveSortBy = sortBy || 'startTime';
+  const effectiveSortOrder: SortOrder = sortBy ? sortOrder : 'desc';
 
   async function handleToggleActive(id: string, isActive: boolean) {
     try {
@@ -114,8 +121,8 @@ export default function EventsPage() {
                   <SortableHeader
                     label="Event"
                     sortKey="name"
-                    activeSortBy={sortBy}
-                    activeSortOrder={sortOrder}
+                    activeSortBy={effectiveSortBy}
+                    activeSortOrder={effectiveSortOrder}
                     onSort={handleSort}
                     defaultOrder="asc"
                   />
@@ -124,8 +131,8 @@ export default function EventsPage() {
                   <SortableHeader
                     label="Starts"
                     sortKey="startTime"
-                    activeSortBy={sortBy}
-                    activeSortOrder={sortOrder}
+                    activeSortBy={effectiveSortBy}
+                    activeSortOrder={effectiveSortOrder}
                     onSort={handleSort}
                     defaultOrder="desc"
                   />

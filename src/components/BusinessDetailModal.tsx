@@ -66,6 +66,13 @@ export function BusinessDetailModal({
   trigger: (open: () => void) => ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  // Shared across both the header thumbnail and the larger review image
+  // below — the same URL backs both, so a failed load applies to both.
+  // Without this, a broken/stale logo URL just silently rendered as the
+  // browser's default broken-image glyph with nothing to actually judge,
+  // instead of falling back to a clear "no usable image" state.
+  const [logoFailedToLoad, setLogoFailedToLoad] = useState(false);
+  const hasLogo = !!business.logoUrl && !logoFailedToLoad;
   const hours = business.openingHours || {};
   const hasHours = Object.keys(hours).length > 0;
 
@@ -85,9 +92,14 @@ export function BusinessDetailModal({
             <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
               <div className="flex items-start gap-3.5 min-w-0">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-red-50">
-                  {business.logoUrl ? (
+                  {hasLogo ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={resolveMediaUrl(business.logoUrl) ?? undefined} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={resolveMediaUrl(business.logoUrl) ?? undefined}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={() => setLogoFailedToLoad(true)}
+                    />
                   ) : (
                     <Store className="h-6 w-6 text-red-600" />
                   )}
@@ -112,6 +124,30 @@ export function BusinessDetailModal({
             {/* Scrollable body */}
             <div className="overflow-y-auto px-6 py-5">
               <div className="space-y-4">
+                {/* A proper-sized view of the submitted logo — the 48px
+                    header thumbnail is just for identity at a glance, not
+                    big enough to actually judge image quality/
+                    appropriateness before approving or rejecting. */}
+                {business.logoUrl && (
+                  <div>
+                    <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-gray-400">Logo</p>
+                    {hasLogo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={resolveMediaUrl(business.logoUrl) ?? undefined}
+                        alt={`${business.name} logo`}
+                        className="h-40 w-40 rounded-xl border border-gray-100 object-cover"
+                        onError={() => setLogoFailedToLoad(true)}
+                      />
+                    ) : (
+                      <div className="flex h-40 w-40 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-gray-400">
+                        <AlertTriangle className="h-5 w-5" />
+                        <span className="text-xs">Couldn&apos;t load image</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {business.description && (
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Description</p>

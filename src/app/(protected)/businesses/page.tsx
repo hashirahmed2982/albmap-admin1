@@ -8,7 +8,7 @@ import {
   setBusinessActive,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
-import { parseServerDate } from '@/lib/dates';
+import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { BusinessDetailModal } from '@/components/BusinessDetailModal';
@@ -43,10 +43,11 @@ export default function BusinessesPage() {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
+      const utcRange = localDateRangeToUtcBounds(dateFrom, dateTo);
       const params = {
         search: search || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined,
+        dateFrom: utcRange.dateFrom,
+        dateTo: utcRange.dateTo,
         page,
         limit,
         sortBy: sortBy || undefined,
@@ -99,6 +100,16 @@ export default function BusinessesPage() {
     setSortOrder(newSortOrder);
     setPage(1);
   }
+
+  // sortBy/sortOrder above stay '' until the admin actually clicks a
+  // column header — that's still what's sent to the API (each tab's own
+  // server-side default takes over, unchanged). But leaving the header
+  // arrows neutral in that state made the list look completely unsorted
+  // even though it always was (oldest-first on Pending, newest-first on
+  // All) — these mirror each tab's real default so the arrows shown
+  // always match what's actually being returned.
+  const effectiveSortBy = sortBy || 'createdAt';
+  const effectiveSortOrder: SortOrder = sortBy ? sortOrder : tab === 'pending' ? 'asc' : 'desc';
 
   async function handleApprove(id: string) {
     try {
@@ -188,8 +199,8 @@ export default function BusinessesPage() {
                   <SortableHeader
                     label="Name"
                     sortKey="name"
-                    activeSortBy={sortBy}
-                    activeSortOrder={sortOrder}
+                    activeSortBy={effectiveSortBy}
+                    activeSortOrder={effectiveSortOrder}
                     onSort={handleSort}
                     defaultOrder="asc"
                   />
@@ -199,8 +210,8 @@ export default function BusinessesPage() {
                   <SortableHeader
                     label="Submitted"
                     sortKey="createdAt"
-                    activeSortBy={sortBy}
-                    activeSortOrder={sortOrder}
+                    activeSortBy={effectiveSortBy}
+                    activeSortOrder={effectiveSortOrder}
                     onSort={handleSort}
                     defaultOrder="desc"
                   />
@@ -222,7 +233,17 @@ export default function BusinessesPage() {
                       {b.createdAt ? parseServerDate(b.createdAt).toLocaleDateString() : '—'}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={b.status} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={b.status} />
+                        {/* isActive only ever applies to an approved listing — pending/
+                            rejected ones were never live to begin with, so a separate
+                            "inactive" badge there would be redundant noise. Without this,
+                            a deactivated business looked IDENTICAL to a normal live one
+                            in this table (both just showed the green "approved" badge). */}
+                        {b.status === 'approved' && b.isActive === false && (
+                          <StatusBadge status="inactive" />
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
@@ -263,7 +284,13 @@ export default function BusinessesPage() {
                             />
                           </>
                         )}
-                        {b.status === 'approved' && (
+                        {/* Branches on isActive, not just status — status stays
+                            'approved' across a deactivate/reactivate cycle (only
+                            is_active changes), so checking status alone meant this
+                            always rendered "Deactivate," even on an already-
+                            deactivated business, with no way to ever click
+                            "Reactivate" again. */}
+                        {b.status === 'approved' && b.isActive !== false && (
                           <ConfirmModal
                             title="Deactivate this business?"
                             description={`"${b.name}" will be hidden from the public map until reactivated.`}
@@ -276,6 +303,23 @@ export default function BusinessesPage() {
                                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
                               >
                                 Deactivate
+                              </button>
+                            )}
+                          />
+                        )}
+                        {b.status === 'approved' && b.isActive === false && (
+                          <ConfirmModal
+                            title="Reactivate this business?"
+                            description={`"${b.name}" will become visible on the public map again.`}
+                            confirmLabel="Reactivate"
+                            confirmStyle="primary"
+                            onConfirm={() => handleToggleActive(b.id, true)}
+                            trigger={(open) => (
+                              <button
+                                onClick={open}
+                                className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                              >
+                                Reactivate
                               </button>
                             )}
                           />
