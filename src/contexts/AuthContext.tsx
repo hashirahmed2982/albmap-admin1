@@ -2,8 +2,8 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { storeTokens, clearTokens, getAccessToken } from '@/lib/tokens';
-import { login as apiLogin, getCurrentUser } from '@/lib/admin-api';
+import { storeTokens, clearTokens, getAccessToken, getRefreshToken } from '@/lib/tokens';
+import { login as apiLogin, logout as apiLogout, getCurrentUser } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import type { AdminUser } from '@/lib/types';
 
@@ -58,9 +58,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
+    // Read the refresh token before clearing it — this is the one that
+    // needs revoking server-side so it can't keep minting fresh access
+    // tokens after this browser is "logged out".
+    const refreshToken = getRefreshToken();
+
     clearTokens();
     setUser(null);
     router.push('/login');
+
+    // Fire-and-forget: the local sign-out above is what actually protects
+    // this browser and must never wait on the network. If this call fails
+    // (backend briefly down, offline, etc.) the token just lives out its
+    // normal 30-day life instead of being cut short — not worth blocking
+    // or retrying the UI redirect for.
+    if (refreshToken) {
+      apiLogout(refreshToken).catch(() => {});
+    }
   }
 
   return (

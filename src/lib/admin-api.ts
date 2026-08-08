@@ -44,6 +44,25 @@ export function login(email: string, password: string): Promise<AuthResponse> {
   });
 }
 
+/**
+ * Revokes the refresh token server-side (see albmap-backend's
+ * auth.service.js `logout`, which sets `revoked_at` on the matching
+ * refresh_tokens row) so it can't be used to silently mint new access
+ * tokens after this browser has been signed out — otherwise "logout"
+ * (manual or the 15-min inactivity auto-logout) only ever clears local
+ * cookies, and the token itself stays valid for its full 30-day life.
+ * `skipAuth: true` because the route takes no auth middleware — it only
+ * needs the refresh token in the body — and the access token may already
+ * be expired/gone by the time this fires.
+ */
+export function logout(refreshToken: string): Promise<void> {
+  return apiFetch<void>('/auth/logout', {
+    method: 'POST',
+    body: { refreshToken },
+    skipAuth: true,
+  });
+}
+
 export function getCurrentUser() {
   return apiFetch<AuthResponse['user']>('/auth/me');
 }
