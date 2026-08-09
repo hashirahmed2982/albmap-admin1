@@ -15,6 +15,7 @@ import { BusinessDetailModal } from '@/components/BusinessDetailModal';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
+import { TruncatedText } from '@/components/TruncatedText';
 import { useToast } from '@/components/ToastProvider';
 import type { Business, PaginationMeta, SortOrder } from '@/lib/types';
 
@@ -222,12 +223,20 @@ export default function BusinessesPage() {
               <tbody className="divide-y divide-gray-100">
                 {businesses.map((b) => (
                   <tr key={b.id}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{b.name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      <TruncatedText text={b.name} maxWidth={180} />
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{b.category}</td>
-                    <td className="px-4 py-3 text-gray-600">{b.formattedAddress}</td>
                     <td className="px-4 py-3 text-gray-600">
-                      <div>{b.ownerName ?? '—'}</div>
-                      {b.ownerEmail && <div className="text-xs text-gray-400">{b.ownerEmail}</div>}
+                      <TruncatedText text={b.formattedAddress} maxWidth={220} />
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <div><TruncatedText text={b.ownerName ?? '—'} maxWidth={140} /></div>
+                      {b.ownerEmail && (
+                        <div className="text-xs text-gray-400">
+                          <TruncatedText text={b.ownerEmail} maxWidth={160} />
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-600">
                       {b.createdAt ? parseServerDate(b.createdAt).toLocaleDateString() : '—'}
