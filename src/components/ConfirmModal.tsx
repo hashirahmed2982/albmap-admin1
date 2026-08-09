@@ -9,8 +9,16 @@ interface ConfirmModalProps {
   confirmStyle?: 'danger' | 'primary';
   onConfirm: (reason?: string) => void | Promise<void>;
   trigger: (open: () => void) => ReactNode;
-  /** When true, shows a text field for the admin to explain the action (used for rejections). */
+  /** When true, shows a text field for the admin to explain the action
+   * (rejections, deactivations, bans) and — unlike leaving it merely
+   * present-but-skippable — actually blocks Confirm until it's filled
+   * in. The affected owner/user sees this exact text on their own
+   * dashboard/login and in their notification email, so a blank one
+   * would leave them with literally nothing to act on. */
   requireReason?: boolean;
+  /** Customizes the placeholder/helper text for who actually sees this
+   * reason — defaults to the business-owner wording most callers use. */
+  reasonAudience?: string;
 }
 
 export function ConfirmModal({
@@ -21,17 +29,30 @@ export function ConfirmModal({
   onConfirm,
   trigger,
   requireReason = false,
+  reasonAudience = 'the business owner',
 }: ConfirmModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
+
+  const reasonMissing = requireReason && !reason.trim();
+
+  function close() {
+    setIsOpen(false);
+    setReason('');
+    setShowValidation(false);
+  }
 
   async function handleConfirm() {
+    if (reasonMissing) {
+      setShowValidation(true);
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await onConfirm(requireReason ? reason : undefined);
-      setIsOpen(false);
-      setReason('');
+      await onConfirm(requireReason ? reason.trim() : undefined);
+      close();
     } finally {
       setIsSubmitting(false);
     }
@@ -46,17 +67,29 @@ export function ConfirmModal({
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <p className="mt-2 text-sm text-gray-600">{description}</p>
             {requireReason && (
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Reason (shown to the business owner)"
-                className="mt-3 w-full rounded-lg border border-gray-300 p-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                rows={3}
-              />
+              <>
+                <textarea
+                  value={reason}
+                  onChange={(e) => {
+                    setReason(e.target.value);
+                    if (showValidation && e.target.value.trim()) setShowValidation(false);
+                  }}
+                  placeholder={`Reason (required — shown to ${reasonAudience})`}
+                  className={`mt-3 w-full rounded-lg border p-2 text-sm focus:outline-none focus:ring-1 ${
+                    showValidation && reasonMissing
+                      ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:border-red-500 focus:ring-red-500'
+                  }`}
+                  rows={3}
+                />
+                {showValidation && reasonMissing && (
+                  <p className="mt-1 text-xs text-red-600">A reason is required.</p>
+                )}
+              </>
             )}
             <div className="mt-5 flex justify-end gap-2">
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={close}
                 className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
               >
                 Cancel

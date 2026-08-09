@@ -98,7 +98,10 @@ export function BusinessDetailModal({
                       src={resolveMediaUrl(business.logoUrl) ?? undefined}
                       alt=""
                       className="h-full w-full object-cover"
-                      onError={() => setLogoFailedToLoad(true)}
+                      onError={() => {
+                        console.error('Business logo failed to load:', resolveMediaUrl(business.logoUrl));
+                        setLogoFailedToLoad(true);
+                      }}
                     />
                   ) : (
                     <Store className="h-6 w-6 text-red-600" />
@@ -137,12 +140,28 @@ export function BusinessDetailModal({
                         src={resolveMediaUrl(business.logoUrl) ?? undefined}
                         alt={`${business.name} logo`}
                         className="h-40 w-40 rounded-xl border border-gray-100 object-cover"
-                        onError={() => setLogoFailedToLoad(true)}
+                        onError={() => {
+                          // Logged with the actual resolved URL, not just
+                          // "it failed" — this is the whole diagnostic
+                          // trail available without live server access:
+                          // wrong host, a 404 (file genuinely missing on
+                          // the server), mixed content, etc. all look
+                          // identical from inside React alone.
+                          console.error('Business logo failed to load:', resolveMediaUrl(business.logoUrl));
+                          setLogoFailedToLoad(true);
+                        }}
                       />
                     ) : (
-                      <div className="flex h-40 w-40 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-gray-400">
+                      <div className="flex h-40 w-40 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-gray-200 bg-gray-50 p-2 text-center text-gray-400">
                         <AlertTriangle className="h-5 w-5" />
                         <span className="text-xs">Couldn&apos;t load image</span>
+                        {/* Shown directly in the UI, not just the console —
+                            so whoever hits this can immediately tell (and
+                            report) exactly which URL 404'd/failed without
+                            needing to open devtools. */}
+                        <span className="break-all text-[10px] text-gray-300">
+                          {resolveMediaUrl(business.logoUrl)}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -254,6 +273,17 @@ export function BusinessDetailModal({
                           Rejection reason
                         </p>
                         <p className="mt-0.5 text-sm text-red-800">{business.rejectionReason}</p>
+                      </div>
+                    </div>
+                  )}
+                  {business.isActive === false && business.deactivationReason && (
+                    <div className="mt-3.5 flex gap-2.5 rounded-lg bg-gray-100 p-3">
+                      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Deactivation reason
+                        </p>
+                        <p className="mt-0.5 text-sm text-gray-700">{business.deactivationReason}</p>
                       </div>
                     </div>
                   )}

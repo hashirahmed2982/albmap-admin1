@@ -132,9 +132,9 @@ export default function BusinessesPage() {
     }
   }
 
-  async function handleToggleActive(id: string, isActive: boolean) {
+  async function handleToggleActive(id: string, isActive: boolean, reason?: string) {
     try {
-      await setBusinessActive(id, isActive);
+      await setBusinessActive(id, isActive, reason);
       showToast(isActive ? 'Business reactivated' : 'Business deactivated');
       load();
     } catch (err) {
@@ -305,7 +305,9 @@ export default function BusinessesPage() {
                             description={`"${b.name}" will be hidden from the public map until reactivated.`}
                             confirmLabel="Deactivate"
                             confirmStyle="danger"
-                            onConfirm={() => handleToggleActive(b.id, false)}
+                            requireReason
+                            reasonAudience="the business owner"
+                            onConfirm={(reason) => handleToggleActive(b.id, false, reason)}
                             trigger={(open) => (
                               <button
                                 onClick={open}
