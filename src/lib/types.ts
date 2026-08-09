@@ -43,6 +43,7 @@ export interface Business {
   ratingCount?: number;
   isActive?: boolean;
   rejectionReason?: string | null;
+  deactivationReason?: string | null;
   ownerName?: string | null;
   ownerEmail?: string | null;
   ownerPhone?: string | null;
@@ -77,6 +78,7 @@ export interface ManagedUser {
   phone: string | null;
   role: string;
   isActive: boolean;
+  deactivationReason?: string | null;
   createdAt: string;
 }
 

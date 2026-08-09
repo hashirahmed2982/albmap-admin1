@@ -85,9 +85,9 @@ export default function UsersPage() {
   const effectiveSortBy = sortBy || 'createdAt';
   const effectiveSortOrder: SortOrder = sortBy ? sortOrder : 'desc';
 
-  async function handleToggleActive(id: string, isActive: boolean) {
+  async function handleToggleActive(id: string, isActive: boolean, reason?: string) {
     try {
-      await setUserActive(id, isActive);
+      await setUserActive(id, isActive, reason);
       showToast(isActive ? 'User reactivated' : 'User banned');
       load();
     } catch (err) {
@@ -167,7 +167,9 @@ export default function UsersPage() {
                         }
                         confirmLabel={u.isActive ? 'Ban' : 'Reactivate'}
                         confirmStyle={u.isActive ? 'danger' : 'primary'}
-                        onConfirm={() => handleToggleActive(u.id, !u.isActive)}
+                        requireReason={u.isActive}
+                        reasonAudience="the user (shown at their next login attempt, and emailed)"
+                        onConfirm={(reason) => handleToggleActive(u.id, !u.isActive, reason)}
                         trigger={(open) => (
                           <button
                             onClick={open}

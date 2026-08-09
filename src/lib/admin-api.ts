@@ -96,10 +96,10 @@ export function reviewBusiness(
   });
 }
 
-export function setBusinessActive(id: string, isActive: boolean): Promise<Business> {
+export function setBusinessActive(id: string, isActive: boolean, reason?: string): Promise<Business> {
   return apiFetch<Business>(`/admin/businesses/${id}/active`, {
     method: 'PATCH',
-    body: { isActive },
+    body: { isActive, reason },
   });
 }
 
@@ -109,10 +109,10 @@ export function getAllUsers(params: ListParams = {}): Promise<PaginatedResponse<
   return apiFetch<PaginatedResponse<ManagedUser>>(`/admin/users${buildListQuery(params)}`);
 }
 
-export function setUserActive(id: string, isActive: boolean): Promise<void> {
+export function setUserActive(id: string, isActive: boolean, reason?: string): Promise<void> {
   return apiFetch<void>(`/admin/users/${id}/active`, {
     method: 'PATCH',
-    body: { isActive },
+    body: { isActive, reason },
   });
 }
 
