@@ -9,6 +9,7 @@ import { ConfirmModal } from '@/components/ConfirmModal';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
+import { TruncatedText } from '@/components/TruncatedText';
 import { useToast } from '@/components/ToastProvider';
 import type { ManagedUser, PaginationMeta, SortOrder } from '@/lib/types';
 
@@ -145,8 +146,12 @@ export default function UsersPage() {
               <tbody className="divide-y divide-gray-100">
                 {users.map((u) => (
                   <tr key={u.id}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{u.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      <TruncatedText text={u.name} maxWidth={160} />
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <TruncatedText text={u.email} maxWidth={200} />
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{u.phone ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{parseServerDate(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3">

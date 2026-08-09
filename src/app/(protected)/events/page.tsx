@@ -10,6 +10,7 @@ import { EventDetailModal } from '@/components/EventDetailModal';
 import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
+import { TruncatedText } from '@/components/TruncatedText';
 import { useToast } from '@/components/ToastProvider';
 import type { BusinessEvent, PaginationMeta, SortOrder } from '@/lib/types';
 
@@ -144,8 +145,12 @@ export default function EventsPage() {
               <tbody className="divide-y divide-gray-100">
                 {events.map((e) => (
                   <tr key={e.id}>
-                    <td className="px-4 py-3 font-medium text-gray-900">{e.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{e.businessName}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">
+                      <TruncatedText text={e.name} maxWidth={160} />
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <TruncatedText text={e.businessName} maxWidth={140} />
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{e.category}</td>
                     <td className="px-4 py-3 text-gray-600">{parseServerDate(e.startTime).toLocaleString()}</td>
                     <td className="px-4 py-3 text-gray-600">{parseServerDate(e.endTime).toLocaleString()}</td>
