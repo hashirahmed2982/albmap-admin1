@@ -1,8 +1,10 @@
-import { apiFetch } from './api';
+import { apiFetch, API_BASE_URL, ApiError } from './api';
+import { getAccessToken } from './tokens';
 import type {
   AuthResponse,
   Business,
   BusinessEvent,
+  BusinessImportResult,
   ManagedUser,
   DashboardStats,
   ApiListResponse,
@@ -103,6 +105,40 @@ export function setBusinessActive(id: string, isActive: boolean, reason?: string
   });
 }
 
+/**
+ * Bypasses apiFetch — it always sets Content-Type: application/json and
+ * JSON.stringifies the body, which would corrupt a multipart file
+ * upload. Manually attaches the same Authorization header apiFetch
+ * would, but skips its silent-401-refresh-and-retry logic (an admin's
+ * session expiring mid-import is rare enough not to be worth
+ * replicating that here — they'll just see the resulting 401 and know
+ * to log back in and retry the whole file).
+ */
+export async function importBusinessesCsv(file: File): Promise<BusinessImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE_URL}/admin/businesses/import`, {
+    method: 'POST',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+  if (!res.ok) {
+    let message = `Import failed with status ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+    } catch {
+      // response wasn't JSON — fall back to the generic message above
+    }
+    throw new ApiError(res.status, message);
+  }
+  return res.json();
+}
+
 // ---------------- Users ----------------
 
 export function getAllUsers(params: ListParams = {}): Promise<PaginatedResponse<ManagedUser>> {
@@ -114,6 +150,34 @@ export function setUserActive(id: string, isActive: boolean, reason?: string): P
     method: 'PATCH',
     body: { isActive, reason },
   });
+}
+
+/**
+ * Downloads the CSV and triggers a save-as via a throwaway <a download>
+ * element — the standard way to save a fetched blob, since a plain
+ * `<a href="...">` can't attach the Authorization header this endpoint
+ * requires. Bypasses apiFetch for the same reason importBusinessesCsv
+ * does (it always parses the response as JSON, which a CSV body isn't).
+ */
+export async function downloadUsersCsv(): Promise<void> {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE_URL}/admin/users/export.csv`, {
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new ApiError(res.status, `Export failed with status ${res.status}`);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `albmap-users-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 // ---------------- Events ----------------

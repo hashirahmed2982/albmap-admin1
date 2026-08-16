@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Upload, X, CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
   getPendingBusinesses,
   getAllBusinesses,
   reviewBusiness,
   setBusinessActive,
+  importBusinessesCsv,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
@@ -17,7 +19,7 @@ import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
 import { TruncatedText } from '@/components/TruncatedText';
 import { useToast } from '@/components/ToastProvider';
-import type { Business, PaginationMeta, SortOrder } from '@/lib/types';
+import type { Business, BusinessImportResult, PaginationMeta, SortOrder } from '@/lib/types';
 
 type Tab = 'pending' | 'all';
 
@@ -39,6 +41,9 @@ export default function BusinessesPage() {
   // the admin actually clicks a column header.
   const [sortBy, setSortBy] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<BusinessImportResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -142,10 +147,52 @@ export default function BusinessesPage() {
     }
   }
 
+  // Picking a file IS the confirmation here — there's no separate
+  // "are you sure" step, since the whole point is a quick bulk import
+  // and every imported row lands as 'pending' anyway (nothing goes live
+  // without a normal review afterward, same safety net as any other
+  // submission — see the backend's importBusinessesFromCsv).
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file name later
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const result = await importBusinessesCsv(file);
+      setImportResult(result);
+      if (result.imported > 0) load();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to import CSV', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Businesses</h1>
-      <p className="mt-1 text-sm text-gray-500">Review submissions and manage listings</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Businesses</h1>
+          <p className="mt-1 text-sm text-gray-500">Review submissions and manage listings</p>
+        </div>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          >
+            <Upload size={16} /> {isImporting ? 'Importing…' : 'Import CSV'}
+          </button>
+        </div>
+      </div>
 
       <div className="mt-6 flex gap-2 border-b border-gray-200">
         <button
@@ -252,6 +299,9 @@ export default function BusinessesPage() {
                         {b.status === 'approved' && b.isActive === false && (
                           <StatusBadge status="inactive" />
                         )}
+                        {b.status === 'pending' && b.ownerAccountStatus === 'invited' && (
+                          <StatusBadge status="invited" />
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -269,9 +319,24 @@ export default function BusinessesPage() {
                         />
                         {b.status === 'pending' && (
                           <>
+                            {/* A CSV-imported business's owner account has
+                                no password until they click their invite
+                                email's link — approving before that would
+                                make a listing live under an account nobody
+                                has actually proven they control yet. The
+                                backend enforces this too (reviewBusiness()
+                                rejects the request regardless), this is
+                                just what stops the admin from finding out
+                                only after clicking. */}
                             <button
                               onClick={() => handleApprove(b.id)}
-                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                              disabled={b.ownerAccountStatus === 'invited'}
+                              title={
+                                b.ownerAccountStatus === 'invited'
+                                  ? `Waiting on ${b.ownerEmail ?? 'the owner'} to set their password via their invite email`
+                                  : undefined
+                              }
+                              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500 disabled:hover:bg-gray-300"
                             >
                               Approve
                             </button>
@@ -347,6 +412,75 @@ export default function BusinessesPage() {
           <Pagination meta={pagination} onPageChange={setPage} onLimitChange={handleLimitChange} />
         )}
       </div>
+
+      {importResult && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-sm"
+          onClick={() => setImportResult(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5">
+              <h3 className="text-lg font-semibold text-gray-900">Import results</h3>
+              <button
+                onClick={() => setImportResult(null)}
+                className="shrink-0 rounded-full p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="overflow-y-auto px-6 py-5">
+              <div className="flex items-start gap-2.5 rounded-xl bg-emerald-50 p-3.5 text-sm text-emerald-800">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                <div>
+                  <p className="font-medium">{importResult.imported} business(es) imported</p>
+                  <p className="mt-0.5 text-emerald-700">
+                    {importResult.linkedToExistingUser} linked to an existing account,{' '}
+                    {importResult.invitedNewUser} new account(s) invited by email. Every imported
+                    business is pending review — a CSV-invited owner also needs to activate their
+                    account before it can be approved.
+                  </p>
+                </div>
+              </div>
+
+              {importResult.failed.length > 0 && (
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    {importResult.failed.length} row(s) couldn&apos;t be imported
+                  </div>
+                  <ul className="mt-2 max-h-52 space-y-1.5 overflow-y-auto rounded-xl border border-gray-100 p-3">
+                    {importResult.failed.map((f) => (
+                      <li key={f.row} className="text-xs text-gray-600">
+                        <span className="font-medium text-gray-900">Row {f.row}</span>
+                        {f.name && <span className="text-gray-500"> ({f.name})</span>}
+                        {' — '}
+                        {f.reason}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs text-gray-400">
+                    Fix these rows and re-import them in a new CSV with just those rows —
+                    re-uploading the original file would import the already-successful rows a
+                    second time as duplicates.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-gray-100 px-6 py-4">
+              <button
+                onClick={() => setImportResult(null)}
+                className="w-full rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
