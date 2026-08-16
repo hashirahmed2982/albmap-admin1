@@ -64,6 +64,10 @@ export interface BusinessImportResult {
   imported: number;
   linkedToExistingUser: number;
   invitedNewUser: number;
+  // Rows skipped because the same email already owns a business with the
+  // same name at the same street address — makes re-importing the exact
+  // same CSV file any number of times a safe no-op.
+  duplicatesSkipped: { row: number; name: string | null }[];
   failed: { row: number; name: string | null; reason: string }[];
 }
 

@@ -36,6 +36,36 @@ function buildListQuery(params: object): string {
   return s ? `?${s}` : '';
 }
 
+/**
+ * Fetches a CSV export and triggers a save-as via a throwaway
+ * <a download> element — the standard way to save a fetched blob, since
+ * a plain `<a href="...">` can't attach the Authorization header these
+ * endpoints require. Bypasses apiFetch for the same reason
+ * importBusinessesCsv does (it always parses the response as JSON, which
+ * a CSV body isn't). Shared by downloadUsersCsv and downloadBusinessesCsv
+ * below — only the path and the resulting filename differ between them.
+ */
+async function downloadCsv(path: string, filenamePrefix: string): Promise<void> {
+  const token = getAccessToken();
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new ApiError(res.status, `Export failed with status ${res.status}`);
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // ---------------- Auth ----------------
 
 export function login(email: string, password: string): Promise<AuthResponse> {
@@ -139,6 +169,10 @@ export async function importBusinessesCsv(file: File): Promise<BusinessImportRes
   return res.json();
 }
 
+export function downloadBusinessesCsv(): Promise<void> {
+  return downloadCsv('/admin/businesses/export.csv', 'albmap-businesses');
+}
+
 // ---------------- Users ----------------
 
 export function getAllUsers(params: ListParams = {}): Promise<PaginatedResponse<ManagedUser>> {
@@ -152,32 +186,8 @@ export function setUserActive(id: string, isActive: boolean, reason?: string): P
   });
 }
 
-/**
- * Downloads the CSV and triggers a save-as via a throwaway <a download>
- * element — the standard way to save a fetched blob, since a plain
- * `<a href="...">` can't attach the Authorization header this endpoint
- * requires. Bypasses apiFetch for the same reason importBusinessesCsv
- * does (it always parses the response as JSON, which a CSV body isn't).
- */
-export async function downloadUsersCsv(): Promise<void> {
-  const token = getAccessToken();
-  const res = await fetch(`${API_BASE_URL}/admin/users/export.csv`, {
-    headers: {
-      'ngrok-skip-browser-warning': 'true',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!res.ok) throw new ApiError(res.status, `Export failed with status ${res.status}`);
-
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `albmap-users-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+export function downloadUsersCsv(): Promise<void> {
+  return downloadCsv('/admin/users/export.csv', 'albmap-users');
 }
 
 // ---------------- Events ----------------

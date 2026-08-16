@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Upload, X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Upload, Download, X, CheckCircle2, AlertTriangle } from 'lucide-react';
 import {
   getPendingBusinesses,
   getAllBusinesses,
   reviewBusiness,
   setBusinessActive,
   importBusinessesCsv,
+  downloadBusinessesCsv,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
@@ -42,6 +43,7 @@ export default function BusinessesPage() {
   const [sortBy, setSortBy] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [importResult, setImportResult] = useState<BusinessImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
@@ -169,6 +171,20 @@ export default function BusinessesPage() {
     }
   }
 
+  // Exports every business, not just what's currently loaded/filtered on
+  // screen — see admin.service.js's exportBusinessesToCsv, which is
+  // deliberately a full unfiltered snapshot.
+  async function handleExport() {
+    setIsExporting(true);
+    try {
+      await downloadBusinessesCsv();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to export businesses', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div>
       <div className="flex items-start justify-between gap-4">
@@ -176,7 +192,14 @@ export default function BusinessesPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Businesses</h1>
           <p className="mt-1 text-sm text-gray-500">Review submissions and manage listings</p>
         </div>
-        <div>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          >
+            <Download size={16} /> {isExporting ? 'Exporting…' : 'Export CSV'}
+          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -187,7 +210,7 @@ export default function BusinessesPage() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
           >
             <Upload size={16} /> {isImporting ? 'Importing…' : 'Import CSV'}
           </button>
@@ -446,6 +469,25 @@ export default function BusinessesPage() {
                 </div>
               </div>
 
+              {importResult.duplicatesSkipped.length > 0 && (
+                <div className="mt-4 rounded-xl bg-gray-50 p-3.5 text-sm text-gray-600">
+                  <p className="font-medium text-gray-900">
+                    {importResult.duplicatesSkipped.length} row(s) skipped — already imported
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Same owner email, business name, and address as a business already on file.
+                  </p>
+                  <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                    {importResult.duplicatesSkipped.map((d) => (
+                      <li key={d.row} className="text-xs text-gray-500">
+                        Row {d.row}
+                        {d.name && ` (${d.name})`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {importResult.failed.length > 0 && (
                 <div className="mt-4">
                   <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
@@ -463,9 +505,8 @@ export default function BusinessesPage() {
                     ))}
                   </ul>
                   <p className="mt-2 text-xs text-gray-400">
-                    Fix these rows and re-import them in a new CSV with just those rows —
-                    re-uploading the original file would import the already-successful rows a
-                    second time as duplicates.
+                    Fix these rows in the file and re-upload it — rows already imported
+                    successfully are safely skipped as duplicates, not imported twice.
                   </p>
                 </div>
               )}
