@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { getAllUsers, setUserActive } from '@/lib/admin-api';
+import { Download } from 'lucide-react';
+import { getAllUsers, setUserActive, downloadUsersCsv } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -29,6 +30,7 @@ export default function UsersPage() {
   // existed, until the admin actually clicks a column header.
   const [sortBy, setSortBy] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [isExporting, setIsExporting] = useState(false);
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -95,10 +97,35 @@ export default function UsersPage() {
     }
   }
 
+  // Exports every business user, not just what's currently loaded/filtered
+  // on screen — see admin.service.js's exportUsersToCsv, which is
+  // deliberately a full unfiltered snapshot.
+  async function handleExport() {
+    setIsExporting(true);
+    try {
+      await downloadUsersCsv();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to export users', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
-      <p className="mt-1 text-sm text-gray-500">Business accounts registered on the platform</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Users</h1>
+          <p className="mt-1 text-sm text-gray-500">Business accounts registered on the platform</p>
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={isExporting}
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+        >
+          <Download size={16} /> {isExporting ? 'Exporting…' : 'Export CSV'}
+        </button>
+      </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <input
@@ -155,7 +182,10 @@ export default function UsersPage() {
                     <td className="px-4 py-3 text-gray-600">{u.phone ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{parseServerDate(u.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={u.isActive ? 'active' : 'inactive'} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={u.isActive ? 'active' : 'inactive'} />
+                        {u.accountStatus === 'invited' && <StatusBadge status="invited" />}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <ConfirmModal

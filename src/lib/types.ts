@@ -35,6 +35,7 @@ export interface Business {
   longitude: number;
   phone: string | null;
   whatsappNumber: string | null;
+  website?: string | null;
   logoUrl: string | null;
   openingHours: Record<string, string>;
   tags: string[];
@@ -47,11 +48,23 @@ export interface Business {
   ownerName?: string | null;
   ownerEmail?: string | null;
   ownerPhone?: string | null;
+  // 'invited' means this business's owner account was created by a CSV
+  // import and hasn't set a password yet — reviewBusiness() on the
+  // backend refuses an 'approved' decision until this flips to 'active'
+  // (see albmap-backend's users.account_status).
+  ownerAccountStatus?: 'active' | 'invited';
   reviewedBy?: string | null;
   reviewedByName?: string | null;
   reviewedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface BusinessImportResult {
+  imported: number;
+  linkedToExistingUser: number;
+  invitedNewUser: number;
+  failed: { row: number; name: string | null; reason: string }[];
 }
 
 export interface BusinessEvent {
@@ -79,6 +92,9 @@ export interface ManagedUser {
   role: string;
   isActive: boolean;
   deactivationReason?: string | null;
+  // 'invited' means this account was created by a CSV business import and
+  // the owner hasn't set a password yet (see Business.ownerAccountStatus).
+  accountStatus?: 'active' | 'invited';
   createdAt: string;
 }
 
