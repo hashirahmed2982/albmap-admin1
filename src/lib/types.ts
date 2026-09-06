@@ -113,6 +113,8 @@ export interface Admin {
 export interface Category {
   id: number;
   name: string;
+  nameDe: string | null;
+  nameSq: string | null;
   iconName: string | null;
   sortOrder: number;
   businessCount: number;
@@ -198,13 +200,35 @@ export interface ApiErrorResponse {
 // localization files and the website's next-intl messages/literal JSX,
 // now editable from here and read live by both clients via GET /content.
 
+// About Us, Privacy Policy, and Terms & Conditions are real user-facing
+// copy, so the backend requires all three of these together on every
+// save (content.service.js's SUPPORTED_LOCALES) — there's no such thing
+// as editing just one language. `social_links` is a plain URL list and
+// stays un-keyed (a Facebook link isn't translated).
+export type Locale = 'en' | 'de' | 'sq';
+
+export const SUPPORTED_LOCALES: { code: Locale; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'German' },
+  { code: 'sq', label: 'Albanian' },
+];
+
+/** One page's content in all 3 required languages, as stored/returned by
+ * the backend for a LOCALIZED_KEYS page (about_us/privacy_policy/
+ * terms_conditions) — see content.service.js's getAllContent/updateContent. */
+export interface LocalizedContent<T> {
+  en: T;
+  de: T;
+  sq: T;
+  updatedAt?: string;
+}
+
 export interface AboutContent {
   tagline: string;
   missionTitle: string;
   missionBody: string;
   visionTitle: string;
   visionBody: string;
-  updatedAt?: string;
 }
 
 export interface SocialLinks {
@@ -225,12 +249,11 @@ export interface LegalSection {
 export interface LegalPageContent {
   title: string;
   sections: LegalSection[];
-  updatedAt?: string;
 }
 
 export interface SiteContent {
-  aboutUs: AboutContent | null;
+  aboutUs: LocalizedContent<AboutContent> | null;
   socialLinks: SocialLinks | null;
-  privacyPolicy: LegalPageContent | null;
-  termsConditions: LegalPageContent | null;
+  privacyPolicy: LocalizedContent<LegalPageContent> | null;
+  termsConditions: LocalizedContent<LegalPageContent> | null;
 }
