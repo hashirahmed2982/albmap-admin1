@@ -17,6 +17,7 @@ import type {
   AboutContent,
   SocialLinks,
   LegalPageContent,
+  LocalizedContent,
 } from './types';
 
 /** Serializes a ListParams (+ any extra string params) into a "?a=b&c=d"
@@ -230,23 +231,34 @@ export function deleteAdmin(id: string): Promise<void> {
 // database edit. The mobile app already fetches categories dynamically
 // (GET /categories) — this just gives the admin a UI to actually manage
 // what that list contains.
+//
+// name/nameDe/nameSq are required together — category.service.js's
+// requireAllLocales() rejects a create/rename missing any of the three,
+// so every category has an English, German, and Albanian label from the
+// moment it exists instead of silently falling back to English on the
+// website/app for anything an admin adds here.
 
 export async function getAllCategories(): Promise<Category[]> {
   const res = await apiFetch<ApiListResponse<Category>>('/admin/categories');
   return res.data;
 }
 
-export function createCategory(name: string, iconName?: string): Promise<Category> {
+export function createCategory(
+  name: string,
+  nameDe: string,
+  nameSq: string,
+  iconName?: string,
+): Promise<Category> {
   return apiFetch<Category>('/admin/categories', {
     method: 'POST',
-    body: { name, iconName },
+    body: { name, nameDe, nameSq, iconName },
   });
 }
 
-export function renameCategory(id: number, name: string): Promise<Category> {
+export function renameCategory(id: number, name: string, nameDe: string, nameSq: string): Promise<Category> {
   return apiFetch<Category>(`/admin/categories/${id}`, {
     method: 'PATCH',
-    body: { name },
+    body: { name, nameDe, nameSq },
   });
 }
 
@@ -287,13 +299,20 @@ export function reviewBroadcast(
 // mobile app and website read it unauthenticated), so this portal reads
 // it the same way rather than duplicating that call under /admin; only
 // the PUT is admin-only.
+//
+// about_us/privacy_policy/terms_conditions are real user-facing copy, so
+// content.service.js requires all 3 supported locales (en/de/sq) together
+// on every save — there's no "just update the German copy" endpoint.
+// social_links stays a flat, un-keyed object since a URL isn't translated.
 
 export function getContent(): Promise<SiteContent> {
   return apiFetch<SiteContent>('/content', { skipAuth: true });
 }
 
-export function updateAboutUs(data: Omit<AboutContent, 'updatedAt'>): Promise<AboutContent> {
-  return apiFetch<AboutContent>('/admin/content/about_us', { method: 'PUT', body: data });
+export function updateAboutUs(
+  data: Omit<LocalizedContent<AboutContent>, 'updatedAt'>,
+): Promise<LocalizedContent<AboutContent>> {
+  return apiFetch<LocalizedContent<AboutContent>>('/admin/content/about_us', { method: 'PUT', body: data });
 }
 
 export function updateSocialLinks(data: Omit<SocialLinks, 'updatedAt'>): Promise<SocialLinks> {
@@ -301,15 +320,18 @@ export function updateSocialLinks(data: Omit<SocialLinks, 'updatedAt'>): Promise
 }
 
 export function updatePrivacyPolicy(
-  data: Omit<LegalPageContent, 'updatedAt'>,
-): Promise<LegalPageContent> {
-  return apiFetch<LegalPageContent>('/admin/content/privacy_policy', { method: 'PUT', body: data });
+  data: Omit<LocalizedContent<LegalPageContent>, 'updatedAt'>,
+): Promise<LocalizedContent<LegalPageContent>> {
+  return apiFetch<LocalizedContent<LegalPageContent>>('/admin/content/privacy_policy', {
+    method: 'PUT',
+    body: data,
+  });
 }
 
 export function updateTermsConditions(
-  data: Omit<LegalPageContent, 'updatedAt'>,
-): Promise<LegalPageContent> {
-  return apiFetch<LegalPageContent>('/admin/content/terms_conditions', {
+  data: Omit<LocalizedContent<LegalPageContent>, 'updatedAt'>,
+): Promise<LocalizedContent<LegalPageContent>> {
+  return apiFetch<LocalizedContent<LegalPageContent>>('/admin/content/terms_conditions', {
     method: 'PUT',
     body: data,
   });

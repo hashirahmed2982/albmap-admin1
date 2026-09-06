@@ -33,11 +33,15 @@ export default function SettingsPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [showAddCategoryForm, setShowAddCategoryForm] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryNameDe, setNewCategoryNameDe] = useState('');
+  const [newCategoryNameSq, setNewCategoryNameSq] = useState('');
   const [newCategoryIcon, setNewCategoryIcon] = useState('');
   const [isSubmittingCategory, setIsSubmittingCategory] = useState(false);
   const [categoryFormError, setCategoryFormError] = useState<string | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryNameDe, setEditingCategoryNameDe] = useState('');
+  const [editingCategoryNameSq, setEditingCategoryNameSq] = useState('');
 
   const loadAdmins = useCallback(async () => {
     setIsLoadingAdmins(true);
@@ -98,11 +102,22 @@ export default function SettingsPage() {
   async function handleAddCategory(e: FormEvent) {
     e.preventDefault();
     setCategoryFormError(null);
+    if (!newCategoryName.trim() || !newCategoryNameDe.trim() || !newCategoryNameSq.trim()) {
+      setCategoryFormError('English, German, and Albanian names are all required.');
+      return;
+    }
     setIsSubmittingCategory(true);
     try {
-      await createCategory(newCategoryName, newCategoryIcon || undefined);
+      await createCategory(
+        newCategoryName.trim(),
+        newCategoryNameDe.trim(),
+        newCategoryNameSq.trim(),
+        newCategoryIcon || undefined,
+      );
       showToast('Category created — the mobile app will pick it up next time it fetches categories');
       setNewCategoryName('');
+      setNewCategoryNameDe('');
+      setNewCategoryNameSq('');
       setNewCategoryIcon('');
       setShowAddCategoryForm(false);
       loadCategories();
@@ -116,12 +131,14 @@ export default function SettingsPage() {
   function startRenaming(category: Category) {
     setEditingCategoryId(category.id);
     setEditingCategoryName(category.name);
+    setEditingCategoryNameDe(category.nameDe ?? '');
+    setEditingCategoryNameSq(category.nameSq ?? '');
   }
 
   async function saveRename(id: number) {
-    if (!editingCategoryName.trim()) return;
+    if (!editingCategoryName.trim() || !editingCategoryNameDe.trim() || !editingCategoryNameSq.trim()) return;
     try {
-      await renameCategory(id, editingCategoryName.trim());
+      await renameCategory(id, editingCategoryName.trim(), editingCategoryNameDe.trim(), editingCategoryNameSq.trim());
       showToast('Category renamed');
       setEditingCategoryId(null);
       loadCategories();
@@ -287,9 +304,25 @@ export default function SettingsPage() {
               <input
                 type="text"
                 required
-                placeholder="Category name (e.g. Bakeries)"
+                placeholder="English name (e.g. Bakeries)"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+              <input
+                type="text"
+                required
+                placeholder="German name (e.g. Bäckereien)"
+                value={newCategoryNameDe}
+                onChange={(e) => setNewCategoryNameDe(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+              />
+              <input
+                type="text"
+                required
+                placeholder="Albanian name (e.g. Furra buke)"
+                value={newCategoryNameSq}
+                onChange={(e) => setNewCategoryNameSq(e.target.value)}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
               />
               <input
@@ -301,8 +334,9 @@ export default function SettingsPage() {
               />
             </div>
             <p className="mt-2 text-xs text-gray-500">
-              Icon name must match a Flutter Material icon identifier used by the mobile app&apos;s icon lookup — leave
-              blank to fall back to a default icon.
+              English, German, and Albanian names are all required — the mobile app and website pick whichever
+              matches the visitor&apos;s current language. Icon name must match a Flutter Material icon identifier
+              used by the mobile app&apos;s icon lookup — leave blank to fall back to a default icon.
             </p>
             <button
               type="submit"
@@ -323,35 +357,65 @@ export default function SettingsPage() {
             categories.map((category) => (
               <div key={category.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                 {editingCategoryId === category.id ? (
-                  <div className="flex flex-1 items-center gap-2">
-                    <input
-                      type="text"
-                      autoFocus
-                      value={editingCategoryName}
-                      onChange={(e) => setEditingCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') saveRename(category.id);
-                        if (e.key === 'Escape') setEditingCategoryId(null);
-                      }}
-                      className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                    />
-                    <button
-                      onClick={() => saveRename(category.id)}
-                      className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setEditingCategoryId(null)}
-                      className="shrink-0 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
+                  <div className="flex flex-1 flex-col gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <input
+                        type="text"
+                        autoFocus
+                        placeholder="English"
+                        value={editingCategoryName}
+                        onChange={(e) => setEditingCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveRename(category.id);
+                          if (e.key === 'Escape') setEditingCategoryId(null);
+                        }}
+                        className="min-w-0 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="German"
+                        value={editingCategoryNameDe}
+                        onChange={(e) => setEditingCategoryNameDe(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveRename(category.id);
+                          if (e.key === 'Escape') setEditingCategoryId(null);
+                        }}
+                        className="min-w-0 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Albanian"
+                        value={editingCategoryNameSq}
+                        onChange={(e) => setEditingCategoryNameSq(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveRename(category.id);
+                          if (e.key === 'Escape') setEditingCategoryId(null);
+                        }}
+                        className="min-w-0 rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                      />
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        onClick={() => saveRename(category.id)}
+                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingCategoryId(null)}
+                        className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-gray-900">{category.name}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        DE: {category.nameDe || '—'} · SQ: {category.nameSq || '—'}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {category.businessCount} {category.businessCount === 1 ? 'business' : 'businesses'}
                       </p>
