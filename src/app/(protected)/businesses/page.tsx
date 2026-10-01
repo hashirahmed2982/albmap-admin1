@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Upload, Download, X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Upload, Download, X, CheckCircle2, AlertTriangle, Mail } from 'lucide-react';
 import {
   getPendingBusinesses,
   getAllBusinesses,
@@ -9,6 +9,7 @@ import {
   setBusinessActive,
   importBusinessesCsv,
   downloadBusinessesCsv,
+  resendOwnerInvite,
 } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
@@ -45,6 +46,7 @@ export default function BusinessesPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [importResult, setImportResult] = useState<BusinessImportResult | null>(null);
+  const [invitingId, setInvitingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
@@ -149,11 +151,24 @@ export default function BusinessesPage() {
     }
   }
 
+  async function handleResendInvite(id: string, ownerEmail?: string | null) {
+    setInvitingId(id);
+    try {
+      await resendOwnerInvite(id);
+      showToast(`Invite email re-sent${ownerEmail ? ` to ${ownerEmail}` : ''}`);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to resend invite', 'error');
+    } finally {
+      setInvitingId(null);
+    }
+  }
+
   // Picking a file IS the confirmation here — there's no separate
-  // "are you sure" step, since the whole point is a quick bulk import
-  // and every imported row lands as 'pending' anyway (nothing goes live
-  // without a normal review afterward, same safety net as any other
-  // submission — see the backend's importBusinessesFromCsv).
+  // "are you sure" step. Every imported row lands as 'approved' and is
+  // live on the map right away (see the backend's importBusinessesFromCsv);
+  // a new owner account still needs to set a password via its invite
+  // email before it can manage the listing, re-sendable via the "Invite"
+  // button on a row whose ownerAccountStatus is 'invited'.
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file name later
@@ -322,9 +337,7 @@ export default function BusinessesPage() {
                         {b.status === 'approved' && b.isActive === false && (
                           <StatusBadge status="inactive" />
                         )}
-                        {b.status === 'pending' && b.ownerAccountStatus === 'invited' && (
-                          <StatusBadge status="invited" />
-                        )}
+                        {b.ownerAccountStatus === 'invited' && <StatusBadge status="invited" />}
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -340,6 +353,16 @@ export default function BusinessesPage() {
                             </button>
                           )}
                         />
+                        {b.ownerAccountStatus === 'invited' && (
+                          <button
+                            onClick={() => handleResendInvite(b.id, b.ownerEmail)}
+                            disabled={invitingId === b.id}
+                            title={`Re-send the invite email to ${b.ownerEmail ?? 'the owner'}`}
+                            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                          >
+                            <Mail size={13} /> {invitingId === b.id ? 'Sending…' : 'Invite'}
+                          </button>
+                        )}
                         {b.status === 'pending' && (
                           <>
                             {/* A CSV-imported business's owner account has
@@ -463,8 +486,10 @@ export default function BusinessesPage() {
                   <p className="mt-0.5 text-emerald-700">
                     {importResult.linkedToExistingUser} linked to an existing account,{' '}
                     {importResult.invitedNewUser} new account(s) invited by email. Every imported
-                    business is pending review — a CSV-invited owner also needs to activate their
-                    account before it can be approved.
+                    business is approved and live on the map immediately — a new owner account
+                    still needs to set a password via its invite email before it can manage the
+                    listing, but that doesn&apos;t block visibility. Use the &quot;Invite&quot;
+                    button on the All Businesses tab to re-send that email if needed.
                   </p>
                 </div>
               </div>

@@ -136,6 +136,13 @@ export function setBusinessActive(id: string, isActive: boolean, reason?: string
   });
 }
 
+// Re-sends the owner's invite email (same template, a fresh token) for a
+// business whose ownerAccountStatus is 'invited'. The backend rejects
+// (409) a business whose owner account is already active.
+export function resendOwnerInvite(id: string): Promise<void> {
+  return apiFetch<void>(`/admin/businesses/${id}/resend-invite`, { method: 'POST' });
+}
+
 /**
  * Bypasses apiFetch — it always sets Content-Type: application/json and
  * JSON.stringifies the body, which would corrupt a multipart file

@@ -49,9 +49,11 @@ export interface Business {
   ownerEmail?: string | null;
   ownerPhone?: string | null;
   // 'invited' means this business's owner account was created by a CSV
-  // import and hasn't set a password yet — reviewBusiness() on the
-  // backend refuses an 'approved' decision until this flips to 'active'
-  // (see albmap-backend's users.account_status).
+  // import and hasn't set a password yet. A CSV-imported business lands
+  // as 'approved' and is visible on the map immediately regardless of
+  // this value — it only controls whether the "Invite" button (resend
+  // the owner's invite email) shows for this row (see
+  // albmap-backend's users.account_status).
   ownerAccountStatus?: 'active' | 'invited';
   reviewedBy?: string | null;
   reviewedByName?: string | null;
@@ -97,7 +99,8 @@ export interface ManagedUser {
   isActive: boolean;
   deactivationReason?: string | null;
   // 'invited' means this account was created by a CSV business import and
-  // the owner hasn't set a password yet (see Business.ownerAccountStatus).
+  // the owner hasn't set a password yet. Their business(es) are already
+  // live regardless (see Business.ownerAccountStatus).
   accountStatus?: 'active' | 'invited';
   createdAt: string;
 }
