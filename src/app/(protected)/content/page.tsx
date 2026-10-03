@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getContent, updatePrivacyPolicy, updateTermsConditions } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
+import { HomeHeroEditor } from '@/components/content/HomeHeroEditor';
 import { AboutUsEditor } from '@/components/content/AboutUsEditor';
 import { SocialLinksEditor } from '@/components/content/SocialLinksEditor';
 import { LegalPageEditor } from '@/components/content/LegalPageEditor';
@@ -40,14 +41,15 @@ export default function ContentPage() {
     <div>
       <h1 className="text-2xl font-semibold text-gray-900">Content</h1>
       <p className="mt-1 text-sm text-gray-500">
-        About Us, social links, Privacy Policy, and Terms &amp; Conditions — edited here, read live by the mobile app
-        and website
+        Homepage hero, About Us, social links, Privacy Policy, and Terms &amp; Conditions — edited here, read live by
+        the mobile app and website
       </p>
 
       {isLoading || !content ? (
         <p className="mt-6 text-sm text-gray-500">Loading…</p>
       ) : (
         <div className="mt-6 space-y-6">
+          <HomeHeroEditor initial={content.homeHero} />
           <AboutUsEditor initial={content.aboutUs} />
           <SocialLinksEditor initial={content.socialLinks} />
           <LegalPageEditor

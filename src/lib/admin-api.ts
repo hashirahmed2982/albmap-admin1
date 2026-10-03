@@ -17,6 +17,7 @@ import type {
   AboutContent,
   SocialLinks,
   LegalPageContent,
+  HomeHeroContent,
   LocalizedContent,
 } from './types';
 
@@ -347,6 +348,15 @@ export function updateTermsConditions(
   data: Omit<LocalizedContent<LegalPageContent>, 'updatedAt'>,
 ): Promise<LocalizedContent<LegalPageContent>> {
   return apiFetch<LocalizedContent<LegalPageContent>>('/admin/content/terms_conditions', {
+    method: 'PUT',
+    body: data,
+  });
+}
+
+export function updateHomeHero(
+  data: Omit<LocalizedContent<HomeHeroContent>, 'updatedAt'>,
+): Promise<LocalizedContent<HomeHeroContent>> {
+  return apiFetch<LocalizedContent<HomeHeroContent>>('/admin/content/home_hero', {
     method: 'PUT',
     body: data,
   });

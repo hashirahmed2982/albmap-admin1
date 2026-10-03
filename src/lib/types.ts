@@ -254,9 +254,18 @@ export interface LegalPageContent {
   sections: LegalSection[];
 }
 
+// The website homepage's hero — title split across two lines (the second
+// rendered in the accent color) plus a subtitle beneath it.
+export interface HomeHeroContent {
+  titlePart1: string;
+  titlePart2: string;
+  subtitle: string;
+}
+
 export interface SiteContent {
   aboutUs: LocalizedContent<AboutContent> | null;
   socialLinks: SocialLinks | null;
   privacyPolicy: LocalizedContent<LegalPageContent> | null;
   termsConditions: LocalizedContent<LegalPageContent> | null;
+  homeHero: LocalizedContent<HomeHeroContent> | null;
 }
