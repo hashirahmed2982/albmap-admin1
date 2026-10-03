@@ -187,6 +187,14 @@ export function getAllUsers(params: ListParams = {}): Promise<PaginatedResponse<
   return apiFetch<PaginatedResponse<ManagedUser>>(`/admin/users${buildListQuery(params)}`);
 }
 
+// Permanent, irreversible account deletion — removes the user and (via
+// the backend's cascading foreign keys) every business, event, review,
+// and favorite tied to them. The admin portal itself requires a typed
+// "DELETE" confirmation before ever calling this.
+export function deleteUser(id: string): Promise<void> {
+  return apiFetch<void>(`/admin/users/${id}`, { method: 'DELETE' });
+}
+
 export function setUserActive(id: string, isActive: boolean, reason?: string): Promise<void> {
   return apiFetch<void>(`/admin/users/${id}/active`, {
     method: 'PATCH',

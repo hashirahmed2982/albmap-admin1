@@ -19,6 +19,12 @@ interface ConfirmModalProps {
   /** Customizes the placeholder/helper text for who actually sees this
    * reason — defaults to the business-owner wording most callers use. */
   reasonAudience?: string;
+  /** When set, requires the admin to type this exact string before
+   * Confirm will go through — an extra safety gate for irreversible
+   * actions (permanent account deletion) where "require a reason" isn't
+   * the right safeguard, since there's no one left to show that reason to
+   * afterward. */
+  requireTypedConfirmation?: string;
 }
 
 export function ConfirmModal({
@@ -30,22 +36,26 @@ export function ConfirmModal({
   trigger,
   requireReason = false,
   reasonAudience = 'the business owner',
+  requireTypedConfirmation,
 }: ConfirmModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [reason, setReason] = useState('');
+  const [typedConfirmation, setTypedConfirmation] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
 
   const reasonMissing = requireReason && !reason.trim();
+  const typedConfirmationMismatch = !!requireTypedConfirmation && typedConfirmation !== requireTypedConfirmation;
 
   function close() {
     setIsOpen(false);
     setReason('');
+    setTypedConfirmation('');
     setShowValidation(false);
   }
 
   async function handleConfirm() {
-    if (reasonMissing) {
+    if (reasonMissing || typedConfirmationMismatch) {
       setShowValidation(true);
       return;
     }
@@ -84,6 +94,33 @@ export function ConfirmModal({
                 />
                 {showValidation && reasonMissing && (
                   <p className="mt-1 text-xs text-red-600">A reason is required.</p>
+                )}
+              </>
+            )}
+            {requireTypedConfirmation && (
+              <>
+                <p className="mt-3 text-xs text-gray-500">
+                  Type <span className="font-mono font-semibold text-gray-900">{requireTypedConfirmation}</span> to
+                  confirm.
+                </p>
+                <input
+                  type="text"
+                  value={typedConfirmation}
+                  onChange={(e) => {
+                    setTypedConfirmation(e.target.value);
+                    if (showValidation && e.target.value === requireTypedConfirmation) setShowValidation(false);
+                  }}
+                  autoComplete="off"
+                  className={`mt-1 w-full rounded-lg border p-2 font-mono text-sm focus:outline-none focus:ring-1 ${
+                    showValidation && typedConfirmationMismatch
+                      ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:border-red-500 focus:ring-red-500'
+                  }`}
+                />
+                {showValidation && typedConfirmationMismatch && (
+                  <p className="mt-1 text-xs text-red-600">
+                    Type &quot;{requireTypedConfirmation}&quot; exactly to confirm.
+                  </p>
                 )}
               </>
             )}

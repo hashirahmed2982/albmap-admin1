@@ -11,7 +11,11 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
 import { TruncatedText } from '@/components/TruncatedText';
+import { Checkbox } from '@/components/Checkbox';
+import { BulkActionBar } from '@/components/BulkActionBar';
 import { useToast } from '@/components/ToastProvider';
+import { useRowSelection } from '@/hooks/useRowSelection';
+import { runBulk, summarizeBulkResult } from '@/lib/bulk';
 import type { BusinessEvent, PaginationMeta, SortOrder } from '@/lib/types';
 
 const EMPTY_PAGINATION: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0 };
@@ -31,9 +35,11 @@ export default function EventsPage() {
   const [sortBy, setSortBy] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const { showToast } = useToast();
+  const { selected, toggle, toggleAll, clear } = useRowSelection();
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    clear();
     try {
       const utcRange = localDateRangeToUtcBounds(dateFrom, dateTo);
       const res = await getAllEvents({
@@ -52,7 +58,7 @@ export default function EventsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
+  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast, clear]);
 
   useEffect(() => {
     load();
@@ -93,6 +99,22 @@ export default function EventsPage() {
     }
   }
 
+  const selectedEvents = events.filter((e) => selected.has(e.id));
+
+  async function handleBulkRemove() {
+    const targets = selectedEvents.filter((e) => e.isActive !== false);
+    const result = await runBulk(targets.map((e) => e.id), (id) => setEventActive(id, false));
+    showToast(summarizeBulkResult('removed', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkRestore() {
+    const targets = selectedEvents.filter((e) => e.isActive === false);
+    const result = await runBulk(targets.map((e) => e.id), (id) => setEventActive(id, true));
+    showToast(summarizeBulkResult('restored', result, selected.size - targets.length));
+    load();
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-semibold text-gray-900">Events</h1>
@@ -115,10 +137,46 @@ export default function EventsPage() {
         ) : events.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">No events found</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <BulkActionBar count={selected.size} onClear={clear}>
+              {selectedEvents.some((e) => e.isActive !== false) && (
+                <ConfirmModal
+                  title={`Remove ${selectedEvents.filter((e) => e.isActive !== false).length} selected event(s)?`}
+                  description="They'll be hidden from the public events feed."
+                  confirmLabel="Remove selected"
+                  confirmStyle="danger"
+                  onConfirm={handleBulkRemove}
+                  trigger={(open) => (
+                    <button
+                      onClick={open}
+                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Remove selected
+                    </button>
+                  )}
+                />
+              )}
+              {selectedEvents.some((e) => e.isActive === false) && (
+                <button
+                  onClick={handleBulkRestore}
+                  className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  Restore selected
+                </button>
+              )}
+            </BulkActionBar>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <Checkbox
+                      checked={events.length > 0 && events.every((e) => selected.has(e.id))}
+                      indeterminate={events.some((e) => selected.has(e.id)) && !events.every((e) => selected.has(e.id))}
+                      onChange={() => toggleAll(events.map((e) => e.id))}
+                      aria-label="Select all on this page"
+                    />
+                  </th>
                   <SortableHeader
                     label="Event"
                     sortKey="name"
@@ -145,6 +203,9 @@ export default function EventsPage() {
               <tbody className="divide-y divide-gray-100">
                 {events.map((e) => (
                   <tr key={e.id}>
+                    <td className="px-4 py-3">
+                      <Checkbox checked={selected.has(e.id)} onChange={() => toggle(e.id)} aria-label={`Select ${e.name}`} />
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <TruncatedText text={e.name} maxWidth={160} />
                     </td>
@@ -198,7 +259,8 @@ export default function EventsPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
         {!isLoading && events.length > 0 && (
           <Pagination meta={pagination} onPageChange={setPage} onLimitChange={handleLimitChange} />

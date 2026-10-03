@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { Download } from 'lucide-react';
-import { getAllUsers, setUserActive, downloadUsersCsv } from '@/lib/admin-api';
+import { getAllUsers, setUserActive, deleteUser, downloadUsersCsv } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -11,7 +11,11 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
 import { TruncatedText } from '@/components/TruncatedText';
+import { Checkbox } from '@/components/Checkbox';
+import { BulkActionBar } from '@/components/BulkActionBar';
 import { useToast } from '@/components/ToastProvider';
+import { useRowSelection } from '@/hooks/useRowSelection';
+import { runBulk, summarizeBulkResult } from '@/lib/bulk';
 import type { ManagedUser, PaginationMeta, SortOrder } from '@/lib/types';
 
 const EMPTY_PAGINATION: PaginationMeta = { page: 1, limit: 20, total: 0, totalPages: 0 };
@@ -32,9 +36,15 @@ export default function UsersPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isExporting, setIsExporting] = useState(false);
   const { showToast } = useToast();
+  const { selected, toggle, toggleAll, clear } = useRowSelection();
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    // A reload always invalidates whatever was selected — new page, new
+    // filter, or the result of the bulk action that just ran — so a
+    // leftover selected id never silently applies to a row the admin
+    // can no longer even see.
+    clear();
     try {
       const utcRange = localDateRangeToUtcBounds(dateFrom, dateTo);
       const res = await getAllUsers({
@@ -53,7 +63,7 @@ export default function UsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
+  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast, clear]);
 
   useEffect(() => {
     load();
@@ -95,6 +105,39 @@ export default function UsersPage() {
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Failed to update user', 'error');
     }
+  }
+
+  async function handleDeleteUser(id: string) {
+    try {
+      await deleteUser(id);
+      showToast('User and all their data permanently deleted');
+      load();
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to delete user', 'error');
+    }
+  }
+
+  const selectedUsers = users.filter((u) => selected.has(u.id));
+
+  async function handleBulkBan(reason: string) {
+    const targets = selectedUsers.filter((u) => u.isActive);
+    const result = await runBulk(targets.map((u) => u.id), (id) => setUserActive(id, false, reason));
+    showToast(summarizeBulkResult('banned', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkReactivate() {
+    const targets = selectedUsers.filter((u) => !u.isActive);
+    const result = await runBulk(targets.map((u) => u.id), (id) => setUserActive(id, true));
+    showToast(summarizeBulkResult('reactivated', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selected);
+    const result = await runBulk(ids, (id) => deleteUser(id));
+    showToast(summarizeBulkResult('permanently deleted', result));
+    load();
   }
 
   // Exports every business user, not just what's currently loaded/filtered
@@ -144,10 +187,64 @@ export default function UsersPage() {
         ) : users.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">No users found</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <BulkActionBar count={selected.size} onClear={clear}>
+              {selectedUsers.some((u) => u.isActive) && (
+                <ConfirmModal
+                  title={`Ban ${selectedUsers.filter((u) => u.isActive).length} selected user(s)?`}
+                  description="They'll lose access to their accounts and businesses immediately. The same reason is shown to all of them (at their next login attempt, and emailed)."
+                  confirmLabel="Ban selected"
+                  confirmStyle="danger"
+                  requireReason
+                  reasonAudience="the user (shown at their next login attempt, and emailed)"
+                  onConfirm={(reason) => handleBulkBan(reason ?? '')}
+                  trigger={(open) => (
+                    <button
+                      onClick={open}
+                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Ban selected
+                    </button>
+                  )}
+                />
+              )}
+              {selectedUsers.some((u) => !u.isActive) && (
+                <button
+                  onClick={handleBulkReactivate}
+                  className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  Reactivate selected
+                </button>
+              )}
+              <ConfirmModal
+                title={`Permanently delete ${selected.size} selected user(s)?`}
+                description="This deletes every selected account and ALL of their data — businesses, events, reviews, favorites — permanently. This cannot be undone."
+                confirmLabel="Delete permanently"
+                confirmStyle="danger"
+                requireTypedConfirmation="DELETE"
+                onConfirm={handleBulkDelete}
+                trigger={(open) => (
+                  <button
+                    onClick={open}
+                    className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                  >
+                    Delete selected
+                  </button>
+                )}
+              />
+            </BulkActionBar>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <Checkbox
+                      checked={users.length > 0 && users.every((u) => selected.has(u.id))}
+                      indeterminate={users.some((u) => selected.has(u.id)) && !users.every((u) => selected.has(u.id))}
+                      onChange={() => toggleAll(users.map((u) => u.id))}
+                      aria-label="Select all on this page"
+                    />
+                  </th>
                   <SortableHeader
                     label="Name"
                     sortKey="name"
@@ -173,6 +270,9 @@ export default function UsersPage() {
               <tbody className="divide-y divide-gray-100">
                 {users.map((u) => (
                   <tr key={u.id}>
+                    <td className="px-4 py-3">
+                      <Checkbox checked={selected.has(u.id)} onChange={() => toggle(u.id)} aria-label={`Select ${u.name}`} />
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <TruncatedText text={u.name} maxWidth={160} />
                     </td>
@@ -188,36 +288,55 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <ConfirmModal
-                        title={u.isActive ? 'Ban this user?' : 'Reactivate this user?'}
-                        description={
-                          u.isActive
-                            ? `"${u.name}" will lose access to their account and businesses immediately.`
-                            : `"${u.name}" will regain access to their account.`
-                        }
-                        confirmLabel={u.isActive ? 'Ban' : 'Reactivate'}
-                        confirmStyle={u.isActive ? 'danger' : 'primary'}
-                        requireReason={u.isActive}
-                        reasonAudience="the user (shown at their next login attempt, and emailed)"
-                        onConfirm={(reason) => handleToggleActive(u.id, !u.isActive, reason)}
-                        trigger={(open) => (
-                          <button
-                            onClick={open}
-                            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${u.isActive
-                                ? 'bg-red-50 text-red-700 hover:bg-red-100'
-                                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                              }`}
-                          >
-                            {u.isActive ? 'Ban' : 'Reactivate'}
-                          </button>
-                        )}
-                      />
+                      <div className="flex justify-end gap-2">
+                        <ConfirmModal
+                          title={u.isActive ? 'Ban this user?' : 'Reactivate this user?'}
+                          description={
+                            u.isActive
+                              ? `"${u.name}" will lose access to their account and businesses immediately.`
+                              : `"${u.name}" will regain access to their account.`
+                          }
+                          confirmLabel={u.isActive ? 'Ban' : 'Reactivate'}
+                          confirmStyle={u.isActive ? 'danger' : 'primary'}
+                          requireReason={u.isActive}
+                          reasonAudience="the user (shown at their next login attempt, and emailed)"
+                          onConfirm={(reason) => handleToggleActive(u.id, !u.isActive, reason)}
+                          trigger={(open) => (
+                            <button
+                              onClick={open}
+                              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${u.isActive
+                                  ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                }`}
+                            >
+                              {u.isActive ? 'Ban' : 'Reactivate'}
+                            </button>
+                          )}
+                        />
+                        <ConfirmModal
+                          title="Permanently delete this user?"
+                          description={`This deletes "${u.name}" (${u.email}) and ALL of their data — businesses, events, reviews, favorites — permanently. This cannot be undone.`}
+                          confirmLabel="Delete permanently"
+                          confirmStyle="danger"
+                          requireTypedConfirmation="DELETE"
+                          onConfirm={() => handleDeleteUser(u.id)}
+                          trigger={(open) => (
+                            <button
+                              onClick={open}
+                              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
         {!isLoading && users.length > 0 && (
           <Pagination meta={pagination} onPageChange={setPage} onLimitChange={handleLimitChange} />

@@ -20,7 +20,11 @@ import { DateRangeFilter } from '@/components/DateRangeFilter';
 import { Pagination } from '@/components/Pagination';
 import { SortableHeader } from '@/components/SortableHeader';
 import { TruncatedText } from '@/components/TruncatedText';
+import { Checkbox } from '@/components/Checkbox';
+import { BulkActionBar } from '@/components/BulkActionBar';
 import { useToast } from '@/components/ToastProvider';
+import { useRowSelection } from '@/hooks/useRowSelection';
+import { runBulk, summarizeBulkResult } from '@/lib/bulk';
 import type { Business, BusinessImportResult, PaginationMeta, SortOrder } from '@/lib/types';
 
 type Tab = 'pending' | 'all';
@@ -49,9 +53,11 @@ export default function BusinessesPage() {
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
+  const { selected, toggle, toggleAll, clear } = useRowSelection();
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    clear();
     try {
       const utcRange = localDateRangeToUtcBounds(dateFrom, dateTo);
       const params = {
@@ -74,7 +80,7 @@ export default function BusinessesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [tab, statusFilter, search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast]);
+  }, [tab, statusFilter, search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast, clear]);
 
   useEffect(() => {
     load();
@@ -161,6 +167,43 @@ export default function BusinessesPage() {
     } finally {
       setInvitingId(null);
     }
+  }
+
+  const selectedBusinesses = businesses.filter((b) => selected.has(b.id));
+
+  async function handleBulkApprove() {
+    const targets = selectedBusinesses.filter((b) => b.status === 'pending' && b.ownerAccountStatus !== 'invited');
+    const result = await runBulk(targets.map((b) => b.id), (id) => reviewBusiness(id, 'approved'));
+    showToast(summarizeBulkResult('approved', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkReject(reason: string) {
+    const targets = selectedBusinesses.filter((b) => b.status === 'pending');
+    const result = await runBulk(targets.map((b) => b.id), (id) => reviewBusiness(id, 'rejected', reason));
+    showToast(summarizeBulkResult('rejected', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkDeactivate(reason: string) {
+    const targets = selectedBusinesses.filter((b) => b.status === 'approved' && b.isActive !== false);
+    const result = await runBulk(targets.map((b) => b.id), (id) => setBusinessActive(id, false, reason));
+    showToast(summarizeBulkResult('deactivated', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkReactivate() {
+    const targets = selectedBusinesses.filter((b) => b.status === 'approved' && b.isActive === false);
+    const result = await runBulk(targets.map((b) => b.id), (id) => setBusinessActive(id, true));
+    showToast(summarizeBulkResult('reactivated', result, selected.size - targets.length));
+    load();
+  }
+
+  async function handleBulkInvite() {
+    const targets = selectedBusinesses.filter((b) => b.ownerAccountStatus === 'invited');
+    const result = await runBulk(targets.map((b) => b.id), (id) => resendOwnerInvite(id));
+    showToast(summarizeBulkResult('invite(s) re-sent', result, selected.size - targets.length));
+    clear();
   }
 
   // Picking a file IS the confirmation here — there's no separate
@@ -278,10 +321,84 @@ export default function BusinessesPage() {
         ) : businesses.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">No businesses found</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <BulkActionBar count={selected.size} onClear={clear}>
+              {tab === 'pending' && selectedBusinesses.some((b) => b.status === 'pending' && b.ownerAccountStatus !== 'invited') && (
+                <button
+                  onClick={handleBulkApprove}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                >
+                  Approve selected
+                </button>
+              )}
+              {tab === 'pending' && selectedBusinesses.some((b) => b.status === 'pending') && (
+                <ConfirmModal
+                  title={`Reject ${selectedBusinesses.filter((b) => b.status === 'pending').length} selected business(es)?`}
+                  description="They will not appear publicly. Optionally explain why — this is shown to each owner."
+                  confirmLabel="Reject selected"
+                  confirmStyle="danger"
+                  requireReason
+                  onConfirm={(reason) => handleBulkReject(reason ?? '')}
+                  trigger={(open) => (
+                    <button
+                      onClick={open}
+                      className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                    >
+                      Reject selected
+                    </button>
+                  )}
+                />
+              )}
+              {tab === 'all' && selectedBusinesses.some((b) => b.status === 'approved' && b.isActive !== false) && (
+                <ConfirmModal
+                  title={`Deactivate ${selectedBusinesses.filter((b) => b.status === 'approved' && b.isActive !== false).length} selected business(es)?`}
+                  description="They'll be hidden from the public map until reactivated."
+                  confirmLabel="Deactivate selected"
+                  confirmStyle="danger"
+                  requireReason
+                  reasonAudience="each business owner"
+                  onConfirm={(reason) => handleBulkDeactivate(reason ?? '')}
+                  trigger={(open) => (
+                    <button
+                      onClick={open}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    >
+                      Deactivate selected
+                    </button>
+                  )}
+                />
+              )}
+              {tab === 'all' && selectedBusinesses.some((b) => b.status === 'approved' && b.isActive === false) && (
+                <button
+                  onClick={handleBulkReactivate}
+                  className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  Reactivate selected
+                </button>
+              )}
+              {selectedBusinesses.some((b) => b.ownerAccountStatus === 'invited') && (
+                <button
+                  onClick={handleBulkInvite}
+                  className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Mail size={13} /> Invite selected
+                </button>
+              )}
+            </BulkActionBar>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs font-medium uppercase text-gray-500">
                 <tr>
+                  <th className="w-10 px-4 py-3">
+                    <Checkbox
+                      checked={businesses.length > 0 && businesses.every((b) => selected.has(b.id))}
+                      indeterminate={
+                        businesses.some((b) => selected.has(b.id)) && !businesses.every((b) => selected.has(b.id))
+                      }
+                      onChange={() => toggleAll(businesses.map((b) => b.id))}
+                      aria-label="Select all on this page"
+                    />
+                  </th>
                   <SortableHeader
                     label="Name"
                     sortKey="name"
@@ -308,6 +425,9 @@ export default function BusinessesPage() {
               <tbody className="divide-y divide-gray-100">
                 {businesses.map((b) => (
                   <tr key={b.id}>
+                    <td className="px-4 py-3">
+                      <Checkbox checked={selected.has(b.id)} onChange={() => toggle(b.id)} aria-label={`Select ${b.name}`} />
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <TruncatedText text={b.name} maxWidth={180} />
                     </td>
@@ -452,7 +572,8 @@ export default function BusinessesPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
         {!isLoading && businesses.length > 0 && (
           <Pagination meta={pagination} onPageChange={setPage} onLimitChange={handleLimitChange} />
