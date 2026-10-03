@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Download } from 'lucide-react';
-import { getAllUsers, setUserActive, deleteUser, downloadUsersCsv } from '@/lib/admin-api';
+import { Download, Mail } from 'lucide-react';
+import { getAllUsers, setUserActive, deleteUser, resendUserInvite, downloadUsersCsv } from '@/lib/admin-api';
 import { ApiError } from '@/lib/api';
 import { parseServerDate, localDateRangeToUtcBounds } from '@/lib/dates';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -25,6 +25,7 @@ export default function UsersPage() {
   const [pagination, setPagination] = useState<PaginationMeta>(EMPTY_PAGINATION);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
@@ -48,6 +49,7 @@ export default function UsersPage() {
     try {
       const utcRange = localDateRangeToUtcBounds(dateFrom, dateTo);
       const res = await getAllUsers({
+        status: statusFilter || undefined,
         search: search || undefined,
         dateFrom: utcRange.dateFrom,
         dateTo: utcRange.dateTo,
@@ -63,7 +65,7 @@ export default function UsersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast, clear]);
+  }, [statusFilter, search, dateFrom, dateTo, page, limit, sortBy, sortOrder, showToast, clear]);
 
   useEffect(() => {
     load();
@@ -74,6 +76,10 @@ export default function UsersPage() {
   // empty page instead of the results the admin actually just asked for.
   function handleSearchChange(value: string) {
     setSearch(value);
+    setPage(1);
+  }
+  function handleStatusFilterChange(value: string) {
+    setStatusFilter(value);
     setPage(1);
   }
   function handleDateRangeChange(range: { dateFrom: string; dateTo: string }) {
@@ -117,7 +123,23 @@ export default function UsersPage() {
     }
   }
 
+  async function handleResendInvite(id: string, email: string) {
+    try {
+      await resendUserInvite(id);
+      showToast(`Invite email re-sent to ${email}`);
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to resend invite', 'error');
+    }
+  }
+
   const selectedUsers = users.filter((u) => selected.has(u.id));
+
+  async function handleBulkInvite() {
+    const targets = selectedUsers.filter((u) => u.accountStatus === 'invited');
+    const result = await runBulk(targets.map((u) => u.id), (id) => resendUserInvite(id));
+    showToast(summarizeBulkResult('invite(s) re-sent', result, selected.size - targets.length));
+    clear();
+  }
 
   async function handleBulkBan(reason: string) {
     const targets = selectedUsers.filter((u) => u.isActive);
@@ -178,6 +200,16 @@ export default function UsersPage() {
           onChange={(e) => handleSearchChange(e.target.value)}
           className="w-72 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
         />
+        <select
+          value={statusFilter}
+          onChange={(e) => handleStatusFilterChange(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+        >
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Banned</option>
+          <option value="invited">Invited</option>
+        </select>
         <DateRangeFilter label="Joined" dateFrom={dateFrom} dateTo={dateTo} onChange={handleDateRangeChange} />
       </div>
 
@@ -214,6 +246,14 @@ export default function UsersPage() {
                   className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
                 >
                   Reactivate selected
+                </button>
+              )}
+              {selectedUsers.some((u) => u.accountStatus === 'invited') && (
+                <button
+                  onClick={handleBulkInvite}
+                  className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Mail size={13} /> Invite selected
                 </button>
               )}
               <ConfirmModal
@@ -313,6 +353,15 @@ export default function UsersPage() {
                             </button>
                           )}
                         />
+                        {u.accountStatus === 'invited' && (
+                          <button
+                            onClick={() => handleResendInvite(u.id, u.email)}
+                            title={`Re-send the invite email to ${u.email}`}
+                            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            <Mail size={13} /> Invite
+                          </button>
+                        )}
                         <ConfirmModal
                           title="Permanently delete this user?"
                           description={`This deletes "${u.name}" (${u.email}) and ALL of their data — businesses, events, reviews, favorites — permanently. This cannot be undone.`}

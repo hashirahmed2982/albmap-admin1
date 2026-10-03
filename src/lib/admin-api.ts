@@ -184,8 +184,17 @@ export function downloadBusinessesCsv(): Promise<void> {
 
 // ---------------- Users ----------------
 
-export function getAllUsers(params: ListParams = {}): Promise<PaginatedResponse<ManagedUser>> {
+export function getAllUsers(
+  params: ListParams & { status?: string } = {},
+): Promise<PaginatedResponse<ManagedUser>> {
   return apiFetch<PaginatedResponse<ManagedUser>>(`/admin/users${buildListQuery(params)}`);
+}
+
+// Re-sends the owner's invite email (same template, a fresh token) for a
+// user whose accountStatus is 'invited'. The backend rejects (409) a
+// user whose account is already active.
+export function resendUserInvite(id: string): Promise<void> {
+  return apiFetch<void>(`/admin/users/${id}/resend-invite`, { method: 'POST' });
 }
 
 // Permanent, irreversible account deletion — removes the user and (via
